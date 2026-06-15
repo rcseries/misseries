@@ -218,5 +218,12 @@
             if (e.key === 'Enter') iniciarSesion();
         });
     </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/missseries/sw.js')
+                .then(() => console.log('✅ SW registrado'))
+                .catch((err) => console.log('❌ Error SW:', err));
+        }
+    </script>
 </body>
 </html>
