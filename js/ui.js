@@ -130,8 +130,7 @@ class UIManager {
             this.aplicarMasonry();
         }, 300);
     }
-
-    // Aplicar layout Masonry
+    // Ajustar grid para que no queden espacios
     static aplicarMasonry() {
         const container = document.getElementById('series-container');
         if (!container) return;
@@ -139,28 +138,12 @@ class UIManager {
         const cards = container.querySelectorAll('.serie-card');
         if (cards.length === 0) return;
         
-        // Obtener columnas actuales
-        const columns = getComputedStyle(container).gridTemplateColumns.split(' ').length;
-        const gap = 24; // 1.5rem gap
-        
-        // Array para tracking de altura por columna
-        const columnHeights = new Array(columns).fill(0);
-        
+        // Pequeño retraso para asegurar que las imágenes cargaron
         cards.forEach(card => {
-            // Encontrar la columna más corta
-            const shortestColumn = columnHeights.indexOf(Math.min(...columnHeights));
-            
-            // Aplicar posición
-            card.style.gridRowStart = 'auto';
-            card.style.gridColumnStart = shortestColumn + 1;
-            card.style.marginTop = '0';
-            
-            // Actualizar altura de la columna
-            columnHeights[shortestColumn] += card.offsetHeight + gap;
+            const altura = card.offsetHeight;
+            // Asignar filas necesarias (1px por fila)
+            card.style.setProperty('--card-rows', altura);
         });
-        
-        // Ajustar altura del contenedor
-        container.style.gridAutoRows = '1px';
     }
 
     // Crear tarjeta de serie
