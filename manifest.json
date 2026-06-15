@@ -1,0 +1,17 @@
+{
+  "name": "Series Tracker",
+  "short_name": "Series",
+  "description": "Seguimiento personal de series de TV",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#e94560",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "favicon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
