@@ -19,16 +19,14 @@ class SeriesManager {
                     data.capitulos_checklist = ChecklistManager.normalizarCapitulos(data.capitulos_checklist);
                 }
                 
-                // Asegurar que fecha_estreno sea string ISO correcto
+                // NO convertir fecha_estreno - mantenerla como viene de Firestore
+                // Firestore guarda la fecha correctamente, solo extraerla como string
                 if (data.fecha_estreno) {
                     if (data.fecha_estreno.toDate && typeof data.fecha_estreno.toDate === 'function') {
+                        // Es un Timestamp de Firestore
                         const fechaDate = data.fecha_estreno.toDate();
-                        data.fecha_estreno = new Date(
-                            fechaDate.getFullYear(), 
-                            fechaDate.getMonth(), 
-                            fechaDate.getDate(), 
-                            12, 0, 0
-                        ).toISOString();
+                        // Usar la fecha LOCAL, no UTC
+                        data.fecha_estreno = fechaDate.toLocaleDateString('en-CA'); // Formato YYYY-MM-DD
                     }
                 }
                 
@@ -54,14 +52,12 @@ class SeriesManager {
         hoy.setHours(0, 0, 0, 0);
         
         for (const serie of series) {
-            // 1. Mover de pendiente_estreno a en_emision si llegó la fecha
             if (AUTOMATIZACION.estrenoAEmision && 
                 serie.categoria === 'pendiente_estreno' && 
                 serie.fecha_estreno) {
                 
                 try {
-                    const fechaEstreno = new Date(serie.fecha_estreno);
-                    fechaEstreno.setHours(0, 0, 0, 0);
+                    const fechaEstreno = new Date(serie.fecha_estreno + 'T00:00:00');
                     
                     if (fechaEstreno <= hoy) {
                         await this.moverCategoria(serie.id, 'en_emision');
@@ -72,7 +68,6 @@ class SeriesManager {
                 }
             }
             
-            // 2. Mover de en_emision a vistas si todos los capítulos están vistos
             if (AUTOMATIZACION.emisionAVistas && 
                 serie.categoria === 'en_emision' && 
                 serie.capitulos_checklist && 
@@ -95,15 +90,11 @@ class SeriesManager {
                 ultima_actualizacion: new Date().toISOString()
             };
 
-            // Convertir fecha_estreno a formato correcto
+            // Guardar la fecha EXACTAMENTE como el usuario la ingresó
+            // No hacer ninguna conversión - Firestore la guardará como string
             if (nuevaSerie.fecha_estreno) {
-                const partes = nuevaSerie.fecha_estreno.split('T')[0].split('-');
-                nuevaSerie.fecha_estreno = new Date(
-                    parseInt(partes[0]), 
-                    parseInt(partes[1]) - 1, 
-                    parseInt(partes[2]), 
-                    12, 0, 0
-                ).toISOString();
+                // Asegurar que sea formato YYYY-MM-DD (ya viene así del input date)
+                nuevaSerie.fecha_estreno = nuevaSerie.fecha_estreno.split('T')[0];
             }
 
             // Si es "En Emisión", generar checklist automático
@@ -128,16 +119,12 @@ class SeriesManager {
         try {
             datos.ultima_actualizacion = new Date().toISOString();
             
+            // Guardar la fecha exactamente como viene del input
             if (datos.fecha_estreno) {
-                const partes = datos.fecha_estreno.split('T')[0].split('-');
-                datos.fecha_estreno = new Date(
-                    parseInt(partes[0]), 
-                    parseInt(partes[1]) - 1, 
-                    parseInt(partes[2]), 
-                    12, 0, 0
-                ).toISOString();
+                datos.fecha_estreno = datos.fecha_estreno.split('T')[0];
             }
             
+            // Si cambió a "En Emisión", regenerar checklist
             if (datos.categoria === 'en_emision' && datos.fecha_estreno && datos.dias_emision && datos.total_capitulos) {
                 datos.capitulos_checklist = ChecklistManager.generarFechasCapitulos(
                     datos.fecha_estreno,
@@ -188,8 +175,8 @@ class SeriesManager {
     // Ordenar series (para Pendientes de Estreno)
     static ordenarPendientesEstreno(series) {
         return series.sort((a, b) => {
-            const fechaA = a.fecha_estreno ? new Date(a.fecha_estreno) : null;
-            const fechaB = b.fecha_estreno ? new Date(b.fecha_estreno) : null;
+            const fechaA = a.fecha_estreno ? new Date(a.fecha_estreno + 'T00:00:00') : null;
+            const fechaB = b.fecha_estreno ? new Date(b.fecha_estreno + 'T00:00:00') : null;
             
             if (fechaA && fechaB && !isNaN(fechaA) && !isNaN(fechaB)) {
                 return fechaA - fechaB;
