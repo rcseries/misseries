@@ -3,13 +3,11 @@ class ChecklistManager {
     static generarFechasCapitulos(fechaEstreno, diasEmision, totalCapitulos) {
         const fechas = [];
         
-        // Usar la fecha exacta sin conversión de zona horaria
         const partes = fechaEstreno.split('-');
         const año = parseInt(partes[0]);
-        const mes = parseInt(partes[1]) - 1; // Los meses en JS van de 0-11
+        const mes = parseInt(partes[1]) - 1;
         const dia = parseInt(partes[2]);
         
-        // Crear fecha base (mediodía para evitar problemas)
         const fechaBase = new Date(año, mes, dia, 12, 0, 0);
         
         let capitulosGenerados = 0;
@@ -24,7 +22,6 @@ class ChecklistManager {
             
             if (diasEmision.includes(diaSemana)) {
                 capitulosGenerados++;
-                // Guardar en formato YYYY-MM-DD
                 const añoCap = fechaActual.getFullYear();
                 const mesCap = String(fechaActual.getMonth() + 1).padStart(2, '0');
                 const diaCap = String(fechaActual.getDate()).padStart(2, '0');
@@ -55,20 +52,17 @@ class ChecklistManager {
         try {
             let fechaStr = fecha;
             
-            // Si es Timestamp de Firestore
             if (fecha.toDate && typeof fecha.toDate === 'function') {
                 const d = fecha.toDate();
                 fechaStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             }
             
-            // Si ya es string YYYY-MM-DD
             const partes = fechaStr.split('T')[0].split('-');
             if (partes.length === 3) {
                 const año = parseInt(partes[0]);
                 const mes = parseInt(partes[1]);
                 const dia = parseInt(partes[2]);
                 
-                // Crear fecha local (mes-1 porque JS usa 0-11)
                 const fechaObj = new Date(año, mes - 1, dia, 12, 0, 0);
                 
                 return fechaObj.toLocaleDateString('es-ES', {
@@ -111,8 +105,11 @@ class ChecklistManager {
                         ultima_actualizacion: new Date().toISOString()
                     });
                     
-                    if (AUTOMATIZACION.emisionAVistas && this.todosVistos(capitulos)) {
-                        await SeriesManager.moverCategoria(serieId, 'vistas');
+                    // Verificar si todos los capítulos están vistos
+                    if (this.todosVistos(capitulos)) {
+                        // Mostrar modal de calificación antes de mover
+                        this.mostrarModalCalificacion(serieId, data.titulo);
+                        return 'completado';
                     }
                     
                     return true;
@@ -122,6 +119,136 @@ class ChecklistManager {
         } catch (error) {
             console.error('Error al actualizar capítulo:', error);
             return false;
+        }
+    }
+
+    // Mostrar modal para calificar antes de mover a Vistas
+    static mostrarModalCalificacion(serieId, titulo) {
+        // Crear modal de calificación
+        const modalHTML = `
+            <div class="modal fade" id="modalCalificacion" tabindex="-1">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content bg-dark text-white">
+                        <div class="modal-header border-secondary">
+                            <h5 class="modal-title">🎉 ¡Serie Completada!</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body text-center">
+                            <p class="mb-3">Has visto todos los capítulos de:</p>
+                            <h4 class="mb-4">${titulo}</h4>
+                            <p class="mb-3">¿Quieres calificarla?</p>
+                            
+                            <div class="rating justify-content-center mb-4" id="ratingCompletado">
+                                ${[5, 4.5, 4, 3.5, 3, 2.5, 2, 1.5, 1, 0.5].map(valor => `
+                                    <input type="radio" name="calificacionCompletado" value="${valor}" id="starComp${valor}">
+                                    <label for="starComp${valor}" style="font-size: 2.5rem;">★</label>
+                                `).join('')}
+                            </div>
+                            
+                            <div class="d-flex justify-content-center gap-2">
+                                <button class="btn btn-outline-light" onclick="ChecklistManager.moverAVistasSinCalificar('${serieId}')">
+                                    Omitir
+                                </button>
+                                <button class="btn btn-warning" onclick="ChecklistManager.moverAVistasConCalificacion('${serieId}')">
+                                    <i class="fas fa-star me-1"></i> Calificar y Guardar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Eliminar modal anterior si existe
+        const modalAnterior = document.getElementById('modalCalificacion');
+        if (modalAnterior) {
+            modalAnterior.remove();
+        }
+        
+        // Agregar modal al body
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Mostrar modal
+        const modal = new bootstrap.Modal(document.getElementById('modalCalificacion'));
+        modal.show();
+        
+        // Cuando se cierre el modal sin decidir
+        document.getElementById('modalCalificacion').addEventListener('hidden.bs.modal', () => {
+            // Recargar la vista actual
+            if (typeof categoriaActual !== 'undefined') {
+                UIManager.renderizarSeries(categoriaActual);
+            }
+        });
+    }
+
+    // Mover a Vistas sin calificar
+    static async moverAVistasSinCalificar(serieId) {
+        try {
+            await SeriesManager.moverCategoria(serieId, 'vistas');
+            
+            // Cerrar modales
+            const modalChecklist = document.getElementById('modalChecklist');
+            if (modalChecklist) {
+                bootstrap.Modal.getInstance(modalChecklist)?.hide();
+            }
+            const modalCalificacion = document.getElementById('modalCalificacion');
+            if (modalCalificacion) {
+                bootstrap.Modal.getInstance(modalCalificacion)?.hide();
+            }
+            
+            // Limpiar backdrops
+            setTimeout(() => {
+                document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                
+                // Recargar vista
+                if (typeof categoriaActual !== 'undefined') {
+                    UIManager.renderizarSeries(categoriaActual);
+                }
+            }, 300);
+        } catch (error) {
+            console.error('Error al mover serie:', error);
+        }
+    }
+
+    // Mover a Vistas con calificación
+    static async moverAVistasConCalificacion(serieId) {
+        try {
+            const calificacionInput = document.querySelector('input[name="calificacionCompletado"]:checked');
+            const calificacion = calificacionInput ? parseFloat(calificacionInput.value) : 0;
+            
+            // Actualizar categoría y calificación
+            await seriesRef.doc(serieId).update({
+                categoria: 'vistas',
+                calificacion: calificacion,
+                fecha_terminada: new Date().toISOString(),
+                ultima_actualizacion: new Date().toISOString()
+            });
+            
+            // Cerrar modales
+            const modalChecklist = document.getElementById('modalChecklist');
+            if (modalChecklist) {
+                bootstrap.Modal.getInstance(modalChecklist)?.hide();
+            }
+            const modalCalificacion = document.getElementById('modalCalificacion');
+            if (modalCalificacion) {
+                bootstrap.Modal.getInstance(modalCalificacion)?.hide();
+            }
+            
+            // Limpiar backdrops
+            setTimeout(() => {
+                document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                
+                // Recargar vista
+                if (typeof categoriaActual !== 'undefined') {
+                    UIManager.renderizarSeries(categoriaActual);
+                }
+            }, 300);
+        } catch (error) {
+            console.error('Error al mover serie:', error);
         }
     }
 
@@ -185,7 +312,6 @@ class ChecklistManager {
         return capitulos.map(cap => {
             let fechaCap = cap.fecha || '';
             
-            // Si es Timestamp de Firestore
             if (fechaCap && fechaCap.toDate && typeof fechaCap.toDate === 'function') {
                 const d = fechaCap.toDate();
                 fechaCap = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
