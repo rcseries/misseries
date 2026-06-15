@@ -17,8 +17,9 @@ class UIManager {
         const container = document.getElementById('series-container');
         container.innerHTML = '';
         
-        // Loader
-        container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 3rem;"><div class="spinner-border text-primary" role="status"></div></div>';
+        // Loader centrado
+        container.style.columnCount = '1';
+        container.innerHTML = '<div style="text-align: center; padding: 3rem;"><div class="spinner-border text-primary" role="status"></div></div>';
         
         try {
             let series = await SeriesManager.obtenerSeries(categoria);
@@ -42,8 +43,9 @@ class UIManager {
             container.innerHTML = '';
             
             if (series.length === 0) {
+                container.style.columnCount = '1';
                 container.innerHTML = `
-                    <div style="grid-column: 1 / -1; text-align: center; padding: 3rem 0;">
+                    <div style="text-align: center; padding: 3rem 0;">
                         <i class="fas fa-tv fa-4x mb-3" style="color: var(--text-secondary)"></i>
                         <h4 style="color: var(--text-secondary)">No hay series en esta categoría</h4>
                         <button class="btn btn-primary mt-3" onclick="abrirModalAgregar()">
@@ -52,6 +54,10 @@ class UIManager {
                     </div>
                 `;
             } else {
+                // Restaurar columnas según pantalla
+                this.restaurarColumnas(container);
+                
+                // Crear todas las tarjetas
                 for (const serie of series) {
                     const tarjeta = await this.crearTarjetaSerie(serie);
                     container.appendChild(tarjeta);
@@ -59,8 +65,9 @@ class UIManager {
             }
         } catch (error) {
             console.error('Error al renderizar:', error);
+            container.style.columnCount = '1';
             container.innerHTML = `
-                <div style="grid-column: 1 / -1; text-align: center; padding: 3rem 0;">
+                <div style="text-align: center; padding: 3rem 0;">
                     <i class="fas fa-exclamation-triangle fa-4x mb-3" style="color: var(--accent)"></i>
                     <h4 style="color: var(--text-secondary)">Error al cargar series</h4>
                     <button class="btn btn-primary mt-3" onclick="UIManager.renderizarSeries(categoriaActual, true)">Reintentar</button>
@@ -71,14 +78,30 @@ class UIManager {
         }
     }
 
-    static mostrarDesdeCache(categoria) {
+    // Restaurar columnas según ancho de pantalla
+    static restaurarColumnas(container) {
+        const ancho = window.innerWidth;
+        if (ancho <= 576) {
+            container.style.columnCount = '1';
+        } else if (ancho <= 768) {
+            container.style.columnCount = '2';
+        } else if (ancho <= 1200) {
+            container.style.columnCount = '3';
+        } else {
+            container.style.columnCount = '4';
+        }
+    }
+
+    // Mostrar desde cache
+    static async mostrarDesdeCache(categoria) {
         const container = document.getElementById('series-container');
         const series = this.seriesCache[categoria] || [];
         container.innerHTML = '';
         
         if (series.length === 0) {
+            container.style.columnCount = '1';
             container.innerHTML = `
-                <div style="grid-column: 1 / -1; text-align: center; padding: 3rem 0;">
+                <div style="text-align: center; padding: 3rem 0;">
                     <i class="fas fa-tv fa-4x mb-3" style="color: var(--text-secondary)"></i>
                     <h4 style="color: var(--text-secondary)">No hay series en esta categoría</h4>
                 </div>
@@ -86,12 +109,15 @@ class UIManager {
             return;
         }
         
-        series.forEach(async (serie) => {
+        this.restaurarColumnas(container);
+        
+        for (const serie of series) {
             const tarjeta = await this.crearTarjetaSerie(serie);
             container.appendChild(tarjeta);
-        });
+        }
     }
 
+    // Crear tarjeta de serie
     static crearTarjetaSerie(serie) {
         return new Promise((resolve) => {
             const div = document.createElement('div');
@@ -103,7 +129,6 @@ class UIManager {
                 ChecklistManager.formatearFecha(serie.fecha_estreno) : '';
             
             let infoExtra = '';
-            let proximoCapituloHTML = '';
             
             switch(serie.categoria) {
                 case 'en_emision':
@@ -112,8 +137,9 @@ class UIManager {
                     const totalCaps = serie.total_capitulos || capitulos.length || 0;
                     const proximoCapitulo = ChecklistManager.obtenerProximoCapitulo(capitulos);
                     
+                    let proximoHTML = '';
                     if (proximoCapitulo) {
-                        proximoCapituloHTML = `
+                        proximoHTML = `
                             <div class="proximo-capitulo" onclick="verChecklist('${serie.id}')">
                                 <div class="d-flex align-items-center">
                                     <i class="fas fa-play-circle me-2"></i>
@@ -125,41 +151,32 @@ class UIManager {
                                         <small>📅 ${ChecklistManager.formatearFecha(proximoCapitulo.fecha)}</small>
                                     </div>
                                 </div>
-                            </div>
-                        `;
+                            </div>`;
                     } else if (capitulos.length > 0 && capitulosVistos === capitulos.length) {
-                        proximoCapituloHTML = `
-                            <div class="proximo-capitulo" style="background: rgba(39, 174, 96, 0.2); border-color: rgba(39, 174, 96, 0.3);">
+                        proximoHTML = `
+                            <div class="proximo-capitulo" style="background: rgba(39, 174, 96, 0.2);">
                                 <div class="d-flex align-items-center">
                                     <i class="fas fa-check-circle text-success me-2"></i>
                                     <div>
-                                        <small style="opacity: 0.8;">¡Completado!</small>
-                                        <br>
-                                        <small>${capitulosVistos}/${totalCaps} capítulos vistos</small>
+                                        <small>¡Completado!</small>
+                                        <br><small>${capitulosVistos}/${totalCaps} vistos</small>
                                     </div>
                                 </div>
-                            </div>
-                        `;
+                            </div>`;
                     }
                     
                     infoExtra = `
-                        <p class="mb-1">
-                            <small style="opacity: 0.9;">📺 ${capitulosVistos}/${totalCaps} capítulos</small>
-                        </p>
+                        <p class="mb-1"><small style="opacity: 0.9;">📺 ${capitulosVistos}/${totalCaps} capítulos</small></p>
                         <div class="progress mb-2" style="height: 3px; background: rgba(255,255,255,0.2);">
                             <div class="progress-bar bg-success" style="width: ${totalCaps > 0 ? (capitulosVistos / totalCaps) * 100 : 0}%"></div>
                         </div>
-                        ${proximoCapituloHTML}
-                    `;
+                        ${proximoHTML}`;
                     break;
                     
                 case 'vistas':
                     infoExtra = `
-                        <div class="text-warning mb-1">
-                            ${this.generarEstrellas(serie.calificacion || 0)}
-                        </div>
-                        ${!serie.calificacion ? '<small style="opacity: 0.7;">⭐ Sin calificar</small>' : ''}
-                    `;
+                        <div class="text-warning mb-1">${this.generarEstrellas(serie.calificacion || 0)}</div>
+                        ${!serie.calificacion ? '<small style="opacity: 0.7;">⭐ Sin calificar</small>' : ''}`;
                     break;
                     
                 case 'a_medias':
@@ -173,8 +190,7 @@ class UIManager {
                             <div class="progress" style="height: 4px; background: rgba(255,255,255,0.2);">
                                 <div class="progress-bar bg-info" style="width: ${progreso}%"></div>
                             </div>
-                        </div>
-                    `;
+                        </div>`;
                     break;
             }
             
@@ -189,39 +205,28 @@ class UIManager {
             
             img.onload = async () => {
                 try {
-                    const colorPredominante = await ImageManager.obtenerColorPredominante(img);
-                    const { r, g, b } = colorPredominante;
-                    const textoContraste = ImageManager.obtenerContraste(r, g, b);
-                    generarHTML(r, g, b, textoContraste);
-                } catch (e) {
-                    generarHTML();
-                }
+                    const color = await ImageManager.obtenerColorPredominante(img);
+                    generarHTML(color.r, color.g, color.b, ImageManager.obtenerContraste(color.r, color.g, color.b));
+                } catch (e) { generarHTML(); }
             };
             
             img.onerror = () => generarHTML();
             
-            setTimeout(() => {
-                if (!div.innerHTML) generarHTML();
-            }, 3000);
+            setTimeout(() => { if (!div.innerHTML) generarHTML(); }, 3000);
         });
     }
 
+    // Generar HTML de la tarjeta
     static generarHTMLTarjeta(serie, portada, fechaEstreno, infoExtra, r, g, b, textoContraste) {
-        const bgColor = `rgb(${r}, ${g}, ${b})`;
-        
         return `
-            <div class="serie-card" style="background-color: ${bgColor};" onclick="verDetalleSerie('${serie.id}')">
+            <div class="serie-card" style="background-color: rgb(${r},${g},${b});" onclick="verDetalleSerie('${serie.id}')">
                 <div class="imagen-container">
                     <img src="${portada}" alt="${serie.titulo}" style="width: 100%; height: auto; display: block;">
                 </div>
                 <div class="info-overlay" style="color: ${textoContraste};">
-                    <h5 class="card-title" style="color: ${textoContraste}; text-shadow: 0 1px 3px rgba(0,0,0,0.3);">
-                        ${serie.titulo}
-                    </h5>
+                    <h5 class="card-title" style="color: ${textoContraste}; text-shadow: 0 1px 3px rgba(0,0,0,0.3);">${serie.titulo}</h5>
                     ${fechaEstreno ? `<p class="mb-1"><small style="color: ${textoContraste}; opacity: 0.9;">📅 ${fechaEstreno}</small></p>` : ''}
-                    <div style="color: ${textoContraste}; opacity: 0.95;">
-                        ${infoExtra}
-                    </div>
+                    <div style="color: ${textoContraste}; opacity: 0.95;">${infoExtra}</div>
                     <div class="d-flex justify-content-between align-items-center mt-2">
                         <span class="badge" style="background-color: ${textoContraste === '#ffffff' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'}; color: ${textoContraste}; font-size: 0.75rem;">
                             ${this.formatearCategoria(serie.categoria)}
@@ -231,29 +236,20 @@ class UIManager {
                                 <i class="fas fa-ellipsis-v"></i>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-dark">
-                                <li><a class="dropdown-item" href="#" onclick="editarSerie('${serie.id}')">
-                                    <i class="fas fa-edit me-2"></i>Editar</a></li>
-                                ${serie.categoria === 'en_emision' ? 
-                                    `<li><a class="dropdown-item" href="#" onclick="verChecklist('${serie.id}')">
-                                        <i class="fas fa-list-check me-2"></i>Ver Checklist</a></li>` : ''}
-                                ${serie.categoria === 'vistas' && !serie.calificacion ? 
-                                    `<li><a class="dropdown-item" href="#" onclick="calificarSerie('${serie.id}')">
-                                        <i class="fas fa-star me-2"></i>Calificar</a></li>` : ''}
+                                <li><a class="dropdown-item" href="#" onclick="editarSerie('${serie.id}')"><i class="fas fa-edit me-2"></i>Editar</a></li>
+                                ${serie.categoria === 'en_emision' ? `<li><a class="dropdown-item" href="#" onclick="verChecklist('${serie.id}')"><i class="fas fa-list-check me-2"></i>Ver Checklist</a></li>` : ''}
+                                ${serie.categoria === 'vistas' && !serie.calificacion ? `<li><a class="dropdown-item" href="#" onclick="calificarSerie('${serie.id}')"><i class="fas fa-star me-2"></i>Calificar</a></li>` : ''}
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item text-danger" href="#" onclick="eliminarSerie('${serie.id}')">
-                                    <i class="fas fa-trash me-2"></i>Eliminar</a></li>
+                                <li><a class="dropdown-item text-danger" href="#" onclick="eliminarSerie('${serie.id}')"><i class="fas fa-trash me-2"></i>Eliminar</a></li>
                             </ul>
                         </div>
                     </div>
                 </div>
-            </div>
-        `;
+            </div>`;
     }
 
     static generarEstrellas(calificacion) {
-        if (!calificacion || calificacion === 0) {
-            return '<small style="opacity: 0.5;">⭐ Sin calificar</small>';
-        }
+        if (!calificacion || calificacion === 0) return '<small style="opacity: 0.5;">⭐ Sin calificar</small>';
         let estrellas = '';
         for (let i = 1; i <= 5; i++) {
             if (i <= calificacion) estrellas += '<i class="fas fa-star"></i>';
@@ -264,14 +260,14 @@ class UIManager {
     }
 
     static formatearCategoria(categoria) {
-        const categorias = {
+        const cats = {
             'pendiente_estreno': 'Próximo estreno',
             'en_emision': 'En emisión',
             'a_medias': 'A medias',
             'pendientes': 'Pendiente',
             'vistas': 'Vista'
         };
-        return categorias[categoria] || categoria;
+        return cats[categoria] || categoria;
     }
 
     static async mostrarChecklist(serieId) {
@@ -280,37 +276,32 @@ class UIManager {
             if (!doc.exists) return;
             const serie = { id: doc.id, ...doc.data() };
             const capitulos = ChecklistManager.normalizarCapitulos(serie.capitulos_checklist);
-            const checklistBody = document.getElementById('checklistBody');
+            const body = document.getElementById('checklistBody');
             
             if (!capitulos || capitulos.length === 0) {
-                checklistBody.innerHTML = '<p class="text-center py-3">No hay checklist disponible.</p>';
+                body.innerHTML = '<p class="text-center py-3">No hay checklist disponible.</p>';
             } else {
                 const vistos = capitulos.filter(c => c.visto).length;
                 const total = capitulos.length;
-                checklistBody.innerHTML = `
+                body.innerHTML = `
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h6 class="mb-0">${serie.titulo}</h6>
                         <small>${vistos}/${total} vistos</small>
                     </div>
                     <div class="progress mb-3" style="height: 6px; background: rgba(255,255,255,0.1);">
-                        <div class="progress-bar bg-success" style="width: ${(vistos / total) * 100}%"></div>
+                        <div class="progress-bar bg-success" style="width: ${(vistos/total)*100}%"></div>
                     </div>
-                    <div id="listaCapitulos">
-                        ${capitulos.map(cap => `
-                            <div class="capitulo-item ${cap.visto ? 'completado' : ''}">
-                                <input type="checkbox" ${cap.visto ? 'checked' : ''} 
-                                       onchange="UIManager.toggleChecklist('${serieId}', ${cap.numero}, this.checked)">
-                                <span class="capitulo-texto">Capítulo ${cap.numero} - ${ChecklistManager.formatearFecha(cap.fecha)}</span>
-                                ${cap.visto ? '<i class="fas fa-check-circle text-success ms-auto"></i>' : ''}
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
+                    ${capitulos.map(cap => `
+                        <div class="capitulo-item ${cap.visto ? 'completado' : ''}">
+                            <input type="checkbox" ${cap.visto ? 'checked' : ''} 
+                                   onchange="UIManager.toggleChecklist('${serieId}', ${cap.numero}, this.checked)">
+                            <span class="capitulo-texto">Capítulo ${cap.numero} - ${ChecklistManager.formatearFecha(cap.fecha)}</span>
+                            ${cap.visto ? '<i class="fas fa-check-circle text-success ms-auto"></i>' : ''}
+                        </div>
+                    `).join('')}`;
             }
             new bootstrap.Modal(document.getElementById('modalChecklist')).show();
-        } catch (error) {
-            console.error('Error al mostrar checklist:', error);
-        }
+        } catch (error) { console.error('Error:', error); }
     }
 
     static async toggleChecklist(serieId, numeroCapitulo, visto) {
@@ -325,8 +316,7 @@ class UIManager {
     static calcularProgreso(serie) {
         const capitulos = serie.capitulos_checklist || [];
         if (capitulos.length === 0) return 0;
-        const vistos = capitulos.filter(c => c.visto).length;
-        return Math.round((vistos / capitulos.length) * 100);
+        return Math.round((capitulos.filter(c => c.visto).length / capitulos.length) * 100);
     }
 }
 
