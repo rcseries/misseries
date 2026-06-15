@@ -39,7 +39,3 @@ self.addEventListener('activate', (event) => {
         })
     );
 });
-
-git add .
-git commit -m "Actualizar archivos"
-git push
