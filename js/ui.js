@@ -42,11 +42,14 @@ class UIManager {
                 return true;
             });
 
-            // Ordenar según categoría
+                       // Ordenar según categoría
             if (categoria === 'pendiente_estreno') {
                 series = SeriesManager.ordenarPendientesEstreno(series);
             } else if (categoria === 'en_emision') {
                 series = SeriesManager.ordenarEnEmision(series);
+            } else if (categoria === 'a_medias' || categoria === 'pendientes' || categoria === 'vistas') {
+                // Orden alfabético para estas categorías
+                series.sort((a, b) => a.titulo.localeCompare(b.titulo, 'es', { sensitivity: 'base' }));
             }
 
             // Guardar en caché
