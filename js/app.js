@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     modalSerie = new bootstrap.Modal(document.getElementById('modalSerie'));
     modalChecklist = new bootstrap.Modal(document.getElementById('modalChecklist'));
     
-    // Limpiar backdrop al cerrar modal
+    // Limpiar backdrop al cerrar modal de checklist
     document.getElementById('modalChecklist').addEventListener('hidden.bs.modal', () => {
         document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
             backdrop.remove();
@@ -16,15 +16,21 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.classList.remove('modal-open');
         document.body.style.overflow = '';
         document.body.style.paddingRight = '';
+        
+        // Recargar la vista actual
+        UIManager.renderizarSeries(categoriaActual);
+    });
+    
+    // También limpiar al cerrar modal de serie
+    document.getElementById('modalSerie').addEventListener('hidden.bs.modal', () => {
+        UIManager.renderizarSeries(categoriaActual);
     });
     
     inicializarEventos();
     UIManager.renderizarSeries(categoriaActual);
 });
 
-// Inicializar eventos
 function inicializarEventos() {
-    // Navegación de categorías
     document.querySelectorAll('.categorias-nav .nav-link').forEach(button => {
         button.addEventListener('click', (e) => {
             document.querySelectorAll('.categorias-nav .nav-link').forEach(b => b.classList.remove('active'));
@@ -34,19 +40,16 @@ function inicializarEventos() {
         });
     });
 
-    // Formulario de serie
     document.getElementById('formSerie').addEventListener('submit', async (e) => {
         e.preventDefault();
         await guardarSerie();
     });
 
-    // Cambio de categoría en el formulario
     document.getElementById('categoria').addEventListener('change', (e) => {
         actualizarCamposExtras(e.target.value);
     });
 }
 
-// Abrir modal para agregar nueva serie
 function abrirModalAgregar() {
     document.getElementById('modalTitulo').textContent = 'Nueva Serie';
     document.getElementById('formSerie').reset();
@@ -56,7 +59,6 @@ function abrirModalAgregar() {
     modalSerie.show();
 }
 
-// Editar serie existente
 async function editarSerie(id) {
     try {
         const doc = await seriesRef.doc(id).get();
@@ -77,7 +79,6 @@ async function editarSerie(id) {
     }
 }
 
-// Actualizar campos extras según categoría
 function actualizarCamposExtras(categoria, datos = {}) {
     const camposExtras = document.getElementById('camposExtras');
     
@@ -88,6 +89,7 @@ function actualizarCamposExtras(categoria, datos = {}) {
                     <label class="form-label">Fecha de Estreno (Opcional)</label>
                     <input type="date" class="form-control bg-dark text-white" id="fechaEstreno" 
                            value="${datos.fecha_estreno ? datos.fecha_estreno.split('T')[0] : ''}">
+                    <small class="text-muted">Cuando llegue la fecha, se moverá automáticamente a "En Emisión"</small>
                 </div>
             `;
             break;
@@ -142,7 +144,6 @@ function actualizarCamposExtras(categoria, datos = {}) {
     }
 }
 
-// Guardar serie
 async function guardarSerie() {
     const id = document.getElementById('serieId').value;
     const titulo = document.getElementById('titulo').value;
@@ -154,16 +155,12 @@ async function guardarSerie() {
         return;
     }
     
-    const datos = {
-        titulo,
-        categoria,
-        portada
-    };
+    const datos = { titulo, categoria, portada };
     
     switch(categoria) {
         case 'pendiente_estreno':
-            const fechaEstrenoPE = document.getElementById('fechaEstreno')?.value;
-            if (fechaEstrenoPE) datos.fecha_estreno = fechaEstrenoPE;
+            const fechaPE = document.getElementById('fechaEstreno')?.value;
+            if (fechaPE) datos.fecha_estreno = fechaPE;
             break;
             
         case 'en_emision':
@@ -202,12 +199,17 @@ async function guardarSerie() {
     }
 }
 
-// Ver checklist
 function verChecklist(id) {
     UIManager.mostrarChecklist(id);
 }
 
-// Eliminar serie
+async function calificarSerie(id) {
+    // Abrir modal de edición para calificar
+    await editarSerie(id);
+    document.getElementById('categoria').value = 'vistas';
+    actualizarCamposExtras('vistas');
+}
+
 async function eliminarSerie(id) {
     if (confirm('¿Estás seguro de eliminar esta serie?')) {
         try {
@@ -219,7 +221,8 @@ async function eliminarSerie(id) {
     }
 }
 
-// Ver detalle de serie
 function verDetalleSerie(id) {
     // Funcionalidad futura
 }
+
+console.log('✅ App cargada correctamente');
