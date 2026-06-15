@@ -1,4 +1,4 @@
-class UIManager {
+aclass UIManager {
     // Control de renderizado
     static renderizando = false;
     static ultimaCategoria = '';
@@ -121,6 +121,7 @@ class UIManager {
     static crearTarjetaSerie(serie) {
         return new Promise((resolve) => {
             const div = document.createElement('div');
+            div.className = 'serie-card';
             
             const portadaData = ImageManager.obtenerPortada(serie.portada, serie.titulo);
             const portada = portadaData.url;
@@ -199,6 +200,8 @@ class UIManager {
             img.src = portada;
             
             const generarHTML = (r = 102, g = 126, b = 234, textoContraste = '#ffffff') => {
+                div.style.backgroundColor = `rgb(${r},${g},${b})`;
+                div.setAttribute('onclick', `verDetalleSerie('${serie.id}')`);
                 div.innerHTML = this.generarHTMLTarjeta(serie, portada, fechaEstreno, infoExtra, r, g, b, textoContraste);
                 resolve(div);
             };
@@ -219,30 +222,28 @@ class UIManager {
     // Generar HTML de la tarjeta
     static generarHTMLTarjeta(serie, portada, fechaEstreno, infoExtra, r, g, b, textoContraste) {
         return `
-            <div class="serie-card" style="background-color: rgb(${r},${g},${b});" onclick="verDetalleSerie('${serie.id}')">
-                <div class="imagen-container">
-                    <img src="${portada}" alt="${serie.titulo}" style="width: 100%; height: auto; display: block;">
-                </div>
-                <div class="info-overlay" style="color: ${textoContraste};">
-                    <h5 class="card-title" style="color: ${textoContraste}; text-shadow: 0 1px 3px rgba(0,0,0,0.3);">${serie.titulo}</h5>
-                    ${fechaEstreno ? `<p class="mb-1"><small style="color: ${textoContraste}; opacity: 0.9;">📅 ${fechaEstreno}</small></p>` : ''}
-                    <div style="color: ${textoContraste}; opacity: 0.95;">${infoExtra}</div>
-                    <div class="d-flex justify-content-between align-items-center mt-2">
-                        <span class="badge" style="background-color: ${textoContraste === '#ffffff' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'}; color: ${textoContraste}; font-size: 0.75rem;">
-                            ${this.formatearCategoria(serie.categoria)}
-                        </span>
-                        <div class="dropdown" onclick="event.stopPropagation()">
-                            <button class="btn btn-sm" style="color: ${textoContraste};" data-bs-toggle="dropdown">
-                                <i class="fas fa-ellipsis-v"></i>
-                            </button>
-                            <ul class="dropdown-menu dropdown-menu-dark">
-                                <li><a class="dropdown-item" href="#" onclick="editarSerie('${serie.id}')"><i class="fas fa-edit me-2"></i>Editar</a></li>
-                                ${serie.categoria === 'en_emision' ? `<li><a class="dropdown-item" href="#" onclick="verChecklist('${serie.id}')"><i class="fas fa-list-check me-2"></i>Ver Checklist</a></li>` : ''}
-                                ${serie.categoria === 'vistas' && !serie.calificacion ? `<li><a class="dropdown-item" href="#" onclick="calificarSerie('${serie.id}')"><i class="fas fa-star me-2"></i>Calificar</a></li>` : ''}
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item text-danger" href="#" onclick="eliminarSerie('${serie.id}')"><i class="fas fa-trash me-2"></i>Eliminar</a></li>
-                            </ul>
-                        </div>
+            <div class="imagen-container">
+                <img src="${portada}" alt="${serie.titulo}" style="width: 100%; height: auto; display: block;">
+            </div>
+            <div class="info-overlay" style="color: ${textoContraste};">
+                <h5 class="card-title" style="color: ${textoContraste}; text-shadow: 0 1px 3px rgba(0,0,0,0.3);">${serie.titulo}</h5>
+                ${fechaEstreno ? `<p class="mb-1"><small style="color: ${textoContraste}; opacity: 0.9;">📅 ${fechaEstreno}</small></p>` : ''}
+                <div style="color: ${textoContraste}; opacity: 0.95;">${infoExtra}</div>
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                    <span class="badge" style="background-color: ${textoContraste === '#ffffff' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'}; color: ${textoContraste}; font-size: 0.75rem;">
+                        ${this.formatearCategoria(serie.categoria)}
+                    </span>
+                    <div class="dropdown" onclick="event.stopPropagation()">
+                        <button class="btn btn-sm" style="color: ${textoContraste};" data-bs-toggle="dropdown">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-dark">
+                            <li><a class="dropdown-item" href="#" onclick="editarSerie('${serie.id}')"><i class="fas fa-edit me-2"></i>Editar</a></li>
+                            ${serie.categoria === 'en_emision' ? `<li><a class="dropdown-item" href="#" onclick="verChecklist('${serie.id}')"><i class="fas fa-list-check me-2"></i>Ver Checklist</a></li>` : ''}
+                            ${serie.categoria === 'vistas' && !serie.calificacion ? `<li><a class="dropdown-item" href="#" onclick="calificarSerie('${serie.id}')"><i class="fas fa-star me-2"></i>Calificar</a></li>` : ''}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="#" onclick="eliminarSerie('${serie.id}')"><i class="fas fa-trash me-2"></i>Eliminar</a></li>
+                        </ul>
                     </div>
                 </div>
             </div>`;
