@@ -42,13 +42,11 @@ body {
     color: white !important;
 }
 
-/* Contenedor - Grid con auto-rows denso */
+/* Contenedor - 4 columnas fijas */
 #series-container {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 1.5rem;
-    grid-auto-flow: row dense;
-    grid-auto-rows: 1px;
+    gap: 0.5cm;
     align-items: start;
 }
 
@@ -60,7 +58,6 @@ body {
     cursor: pointer;
     display: flex;
     flex-direction: column;
-    grid-row-end: span var(--card-rows, 300);
 }
 
 .serie-card:hover {
@@ -233,37 +230,4 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: #c73e54;
-}
-
-/* RESPONSIVE */
-@media (max-width: 1200px) {
-    #series-container {
-        grid-template-columns: repeat(3, 1fr);
-    }
-}
-
-@media (max-width: 768px) {
-    .categorias-nav {
-        flex-direction: column;
-    }
-    
-    #series-container {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1rem;
-    }
-    
-    .serie-card .info-overlay {
-        padding: 0.75rem;
-    }
-    
-    .serie-card .card-title {
-        font-size: 0.95rem;
-    }
-}
-
-@media (max-width: 576px) {
-    #series-container {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 0.75rem;
-    }
 }
