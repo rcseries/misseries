@@ -1,4 +1,4 @@
-aclass UIManager {
+class UIManager {
     // Control de renderizado
     static renderizando = false;
     static ultimaCategoria = '';
