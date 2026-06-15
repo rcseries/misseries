@@ -10,18 +10,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     modalSerie    = new bootstrap.Modal(document.getElementById('modalSerie'));
     modalChecklist = new bootstrap.Modal(document.getElementById('modalChecklist'));
 
-    // Cerrar modal checklist → re-renderizar
+    // Cerrar modal checklist → re-renderizar forzado
     document.getElementById('modalChecklist').addEventListener('hidden.bs.modal', () => {
         document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
         document.body.classList.remove('modal-open');
         document.body.style.overflow = '';
         document.body.style.paddingRight = '';
-        UIManager.renderizarSeries(CATEGORIA_ACTUAL);
+        UIManager.renderizarSeries(CATEGORIA_ACTUAL, true);
     });
 
-    // Cerrar modal serie → re-renderizar
+    // Cerrar modal serie → re-renderizar forzado
     document.getElementById('modalSerie').addEventListener('hidden.bs.modal', () => {
-        UIManager.renderizarSeries(CATEGORIA_ACTUAL);
+        UIManager.renderizarSeries(CATEGORIA_ACTUAL, true);
     });
 
     inicializarEventos();
@@ -166,7 +166,8 @@ async function guardarSerie() {
         if (serieId) await NotificationManager.reprogramarSerie(serieId);
 
         modalSerie.hide();
-        UIManager.renderizarSeries(CATEGORIA_ACTUAL);
+        // forzar=true para invalidar caché y mostrar cambios inmediatamente
+        UIManager.renderizarSeries(CATEGORIA_ACTUAL, true);
     } catch (error) {
         console.error('Error:', error);
         alert('Error al guardar');
@@ -185,7 +186,8 @@ async function eliminarSerie(id) {
     if (confirm('¿Eliminar esta serie?')) {
         try {
             await SeriesManager.eliminarSerie(id);
-            UIManager.renderizarSeries(CATEGORIA_ACTUAL);
+            // forzar=true para invalidar caché
+            UIManager.renderizarSeries(CATEGORIA_ACTUAL, true);
         } catch (error) { alert('Error al eliminar'); }
     }
 }
