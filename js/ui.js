@@ -26,30 +26,22 @@ class UIManager {
             return;
         }
         
-        series.forEach(serie => {
-            container.appendChild(this.crearTarjetaSerie(serie));
-        });
+        for (const serie of series) {
+            const tarjeta = await this.crearTarjetaSerie(serie);
+            container.appendChild(tarjeta);
+        }
     }
 
     // Crear tarjeta de serie
-    static crearTarjetaSerie(serie) {
+    static async crearTarjetaSerie(serie) {
         const col = document.createElement('div');
         col.className = 'col-md-4 col-lg-3 mb-4';
         
-        const portada = serie.portada || `data:image/svg+xml,${encodeURIComponent(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="400" height="600" viewBox="0 0 400 600">
-        <defs>
-            <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
-                <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
-            </linearGradient>
-        </defs>
-        <rect width="400" height="600" fill="url(#grad)"/>
-        <text x="200" y="280" font-size="80" text-anchor="middle" fill="white" opacity="0.5">📺</text>
-        <text x="200" y="350" font-size="24" text-anchor="middle" fill="white" opacity="0.8">Sin Portada</text>
-        <text x="200" y="390" font-size="16" text-anchor="middle" fill="white" opacity="0.6">Agregar imagen</text>
-    </svg>
-`)}`;
+        // Obtener portada procesada
+        const portadaData = await ImageManager.obtenerPortada(serie.portada, serie.titulo);
+        const portada = portadaData.url;
+        const esPlaceholder = portadaData.esPlaceholder;
+        
         const fechaEstreno = serie.fecha_estreno ? 
             new Date(serie.fecha_estreno).toLocaleDateString('es-ES') : '';
         
@@ -57,12 +49,17 @@ class UIManager {
         
         switch(serie.categoria) {
             case 'en_emision':
+                const capitulosVistos = serie.capitulos_checklist ? 
+                    serie.capitulos_checklist.filter(c => c.visto).length : 0;
                 infoExtra = `
                     <p class="card-text">
                         <small class="text-muted">
-                            <i class="fas fa-calendar me-1"></i> Capítulos: ${serie.total_capitulos || 'N/A'}
+                            <i class="fas fa-tv me-1"></i> ${capitulosVistos}/${serie.total_capitulos || '?'} capítulos
                         </small>
                     </p>
+                    <div class="progress mt-2" style="height: 4px;">
+                        <div class="progress-bar bg-success" style="width: ${(capitulosVistos / serie.total_capitulos) * 100}%"></div>
+                    </div>
                 `;
                 break;
             case 'vistas':
@@ -76,8 +73,8 @@ class UIManager {
                 break;
             case 'a_medias':
                 infoExtra = `
-                    <div class="progress mt-2" style="height: 5px;">
-                        <div class="progress-bar" style="width: ${this.calcularProgreso(serie)}%"></div>
+                    <div class="progress mt-2" style="height: 4px;">
+                        <div class="progress-bar bg-info" style="width: ${this.calcularProgreso(serie)}%"></div>
                     </div>
                 `;
                 break;
@@ -85,7 +82,15 @@ class UIManager {
         
         col.innerHTML = `
             <div class="serie-card" onclick="verDetalleSerie('${serie.id}')">
-                <img src="${portada}" class="card-img-top" alt="${serie.titulo}">
+                <div class="position-relative">
+                    <img src="${portada}" class="card-img-top" alt="${serie.titulo}" 
+                         style="${esPlaceholder ? 'opacity: 0.9;' : ''}">
+                    ${!esPlaceholder && portadaData.servicio ? `
+                        <span class="position-absolute top-0 end-0 m-2 badge bg-dark">
+                            <i class="${portadaData.servicio.icon}"></i> ${portadaData.servicio.name}
+                        </span>
+                    ` : ''}
+                </div>
                 <div class="card-body">
                     <h5 class="card-title">${serie.titulo}</h5>
                     ${fechaEstreno ? `<p class="card-text"><small>📅 ${fechaEstreno}</small></p>` : ''}
@@ -97,11 +102,14 @@ class UIManager {
                                 <i class="fas fa-ellipsis-v"></i>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-dark">
-                                <li><a class="dropdown-item" href="#" onclick="editarSerie('${serie.id}')">Editar</a></li>
+                                <li><a class="dropdown-item" href="#" onclick="editarSerie('${serie.id}')">
+                                    <i class="fas fa-edit me-2"></i>Editar</a></li>
                                 ${serie.categoria === 'en_emision' ? 
-                                    `<li><a class="dropdown-item" href="#" onclick="verChecklist('${serie.id}')">Ver Checklist</a></li>` : ''}
+                                    `<li><a class="dropdown-item" href="#" onclick="verChecklist('${serie.id}')">
+                                        <i class="fas fa-list-check me-2"></i>Ver Checklist</a></li>` : ''}
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item text-danger" href="#" onclick="eliminarSerie('${serie.id}')">Eliminar</a></li>
+                                <li><a class="dropdown-item text-danger" href="#" onclick="eliminarSerie('${serie.id}')">
+                                    <i class="fas fa-trash me-2"></i>Eliminar</a></li>
                             </ul>
                         </div>
                     </div>
