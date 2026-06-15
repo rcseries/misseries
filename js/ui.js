@@ -36,7 +36,20 @@ class UIManager {
         const col = document.createElement('div');
         col.className = 'col-md-4 col-lg-3 mb-4';
         
-        const portada = serie.portada || 'assets/images/placeholder.jpg';
+        const portada = serie.portada || `data:image/svg+xml,${encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="400" height="600" viewBox="0 0 400 600">
+        <defs>
+            <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+            </linearGradient>
+        </defs>
+        <rect width="400" height="600" fill="url(#grad)"/>
+        <text x="200" y="280" font-size="80" text-anchor="middle" fill="white" opacity="0.5">📺</text>
+        <text x="200" y="350" font-size="24" text-anchor="middle" fill="white" opacity="0.8">Sin Portada</text>
+        <text x="200" y="390" font-size="16" text-anchor="middle" fill="white" opacity="0.6">Agregar imagen</text>
+    </svg>
+`)}`;
         const fechaEstreno = serie.fecha_estreno ? 
             new Date(serie.fecha_estreno).toLocaleDateString('es-ES') : '';
         
