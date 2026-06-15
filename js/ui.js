@@ -268,11 +268,22 @@ class UIManager {
         }
     }
 
+        // Toggle capítulo en checklist
     static async toggleChecklist(serieId, numeroCapitulo, visto) {
         const resultado = await ChecklistManager.toggleCapitulo(serieId, numeroCapitulo, visto);
         
-        if (resultado) {
-            // Recargar el checklist
+        if (resultado === 'completado') {
+            // Se mostrará el modal de calificación automáticamente
+            // Cerrar el modal de checklist
+            const modalChecklist = document.getElementById('modalChecklist');
+            if (modalChecklist) {
+                const modal = bootstrap.Modal.getInstance(modalChecklist);
+                if (modal) {
+                    modal.hide();
+                }
+            }
+        } else if (resultado) {
+            // Recargar el checklist normalmente
             setTimeout(async () => {
                 await this.mostrarChecklist(serieId);
             }, 300);
