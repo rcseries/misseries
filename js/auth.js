@@ -4,14 +4,14 @@
 
 (function () {
     // Si no está autenticado, redirigir al login
-    if (sessionStorage.getItem('st_auth') !== 'true') {
+    if (localStorage.getItem('st_auth') !== 'true') {
         window.location.href = 'index.html';
     }
 })();
 
 function cerrarSesion() {
-    sessionStorage.removeItem('st_auth');
-    sessionStorage.removeItem('st_user');
+    localStorage.removeItem('st_auth');
+    localStorage.removeItem('st_user');
     window.location.href = 'index.html';
 }
 
