@@ -8,6 +8,16 @@ document.addEventListener('DOMContentLoaded', () => {
     modalSerie = new bootstrap.Modal(document.getElementById('modalSerie'));
     modalChecklist = new bootstrap.Modal(document.getElementById('modalChecklist'));
     
+    // Limpiar backdrop al cerrar modal
+    document.getElementById('modalChecklist').addEventListener('hidden.bs.modal', () => {
+        document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+            backdrop.remove();
+        });
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+    });
+    
     inicializarEventos();
     UIManager.renderizarSeries(categoriaActual);
 });
@@ -54,8 +64,8 @@ async function editarSerie(id) {
             const serie = doc.data();
             document.getElementById('modalTitulo').textContent = 'Editar Serie';
             document.getElementById('serieId').value = id;
-            document.getElementById('titulo').value = serie.titulo;
-            document.getElementById('categoria').value = serie.categoria;
+            document.getElementById('titulo').value = serie.titulo || '';
+            document.getElementById('categoria').value = serie.categoria || '';
             document.getElementById('portada').value = serie.portada || '';
             
             actualizarCamposExtras(serie.categoria, serie);
@@ -105,7 +115,6 @@ function actualizarCamposExtras(categoria, datos = {}) {
                 </div>
             `;
             
-            // Eventos para los badges de días
             document.querySelectorAll('.dia-badge').forEach(badge => {
                 badge.addEventListener('click', () => {
                     badge.classList.toggle('seleccionado');
@@ -133,7 +142,7 @@ function actualizarCamposExtras(categoria, datos = {}) {
     }
 }
 
-// Guardar serie (nueva o actualización)
+// Guardar serie
 async function guardarSerie() {
     const id = document.getElementById('serieId').value;
     const titulo = document.getElementById('titulo').value;
@@ -151,7 +160,6 @@ async function guardarSerie() {
         portada
     };
     
-    // Campos específicos por categoría
     switch(categoria) {
         case 'pendiente_estreno':
             const fechaEstrenoPE = document.getElementById('fechaEstreno')?.value;
@@ -176,22 +184,25 @@ async function guardarSerie() {
             break;
     }
     
-    let resultado;
-    if (id) {
-        resultado = await SeriesManager.actualizarSerie(id, datos);
-    } else {
-        resultado = await SeriesManager.agregarSerie(datos);
-    }
-    
-    if (resultado) {
-        modalSerie.hide();
-        UIManager.renderizarSeries(categoriaActual);
-    } else {
+    try {
+        let resultado;
+        if (id) {
+            resultado = await SeriesManager.actualizarSerie(id, datos);
+        } else {
+            resultado = await SeriesManager.agregarSerie(datos);
+        }
+        
+        if (resultado) {
+            modalSerie.hide();
+            UIManager.renderizarSeries(categoriaActual);
+        }
+    } catch (error) {
+        console.error('Error:', error);
         alert('Error al guardar la serie');
     }
 }
 
-// Ver checklist de capítulos
+// Ver checklist
 function verChecklist(id) {
     UIManager.mostrarChecklist(id);
 }
@@ -199,68 +210,16 @@ function verChecklist(id) {
 // Eliminar serie
 async function eliminarSerie(id) {
     if (confirm('¿Estás seguro de eliminar esta serie?')) {
-        const resultado = await SeriesManager.eliminarSerie(id);
-        if (resultado) {
+        try {
+            await SeriesManager.eliminarSerie(id);
             UIManager.renderizarSeries(categoriaActual);
-        } else {
+        } catch (error) {
             alert('Error al eliminar la serie');
         }
     }
 }
 
-// Previsualizar imagen antes de guardar
-function previsualizarPortada() {
-    const urlInput = document.getElementById('portada');
-    const previewContainer = document.getElementById('previewPortada');
-    
-    if (!previewContainer) {
-        // Crear contenedor de previsualización si no existe
-        const container = document.createElement('div');
-        container.id = 'previewPortada';
-        container.className = 'mb-3 text-center';
-        document.getElementById('portada').parentNode.after(container);
-    }
-    
-    const url = urlInput.value;
-    const previewDiv = document.getElementById('previewPortada');
-    
-    if (url.trim() === '') {
-        previewDiv.innerHTML = '';
-        return;
-    }
-    
-    const urlDirecta = ImageManager.convertirAEnlaceDirecto(url);
-    const servicio = ImageManager.detectarServicio(url);
-    
-    previewDiv.innerHTML = `
-        <div class="mt-2 p-2" style="background: rgba(255,255,255,0.05); border-radius: 10px;">
-            <p class="mb-2">
-                <small>
-                    <i class="${servicio.icon}"></i> 
-                    Detectado: <strong>${servicio.name}</strong>
-                    ${urlDirecta !== url ? ' - <span class="text-success">Convertido a enlace directo</span>' : ''}
-                </small>
-            </p>
-            <img src="${urlDirecta}" 
-                 style="max-height: 200px; border-radius: 8px; max-width: 100%;" 
-                 onerror="this.parentElement.innerHTML='<div class=\\'alert alert-warning py-2\\'>⚠️ No se pudo cargar la imagen. Verifica la URL y los permisos.</div>'"
-                 onload="this.style.display='block';">
-        </div>
-    `;
-}
-
-// Agregar evento al campo de portada
-document.addEventListener('DOMContentLoaded', () => {
-    const portadaInput = document.getElementById('portada');
-    if (portadaInput) {
-        portadaInput.addEventListener('input', previsualizarPortada);
-        portadaInput.addEventListener('paste', () => {
-            setTimeout(previsualizarPortada, 100);
-        });
-    }
-});
-
-// Ver detalle de serie (función placeholder para futura expansión)
+// Ver detalle de serie
 function verDetalleSerie(id) {
-    // Aquí puedes agregar lógica para ver detalles completos
+    // Funcionalidad futura
 }
