@@ -43,22 +43,24 @@ body {
     color: white !important;
 }
 
-/* ============ CONTENEDOR GRID 4 COLUMNAS ============ */
+/* ============ CONTENEDOR MASONRY TIPO PINTEREST ============ */
 #series-container {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: var(--card-gap);
+    column-count: 4;
+    column-gap: var(--card-gap);
+    padding: 0;
+    margin: 0;
 }
 
-/* Tarjetas */
+/* Tarjetas - NO se rompen entre columnas */
 .serie-card {
+    break-inside: avoid;
+    margin-bottom: var(--card-gap);
     border-radius: 15px;
     overflow: hidden;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
     cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    height: fit-content;
+    display: block;
+    width: 100%;
 }
 
 .serie-card:hover {
@@ -70,7 +72,6 @@ body {
 .serie-card .imagen-container {
     width: 100%;
     line-height: 0;
-    flex-shrink: 0;
 }
 
 .serie-card .imagen-container img {
@@ -82,7 +83,6 @@ body {
 /* Info overlay */
 .serie-card .info-overlay {
     padding: 1rem;
-    flex-shrink: 0;
 }
 
 .serie-card .card-title {
@@ -236,13 +236,13 @@ body {
 /* ============ RESPONSIVE ============ */
 @media (max-width: 1200px) {
     #series-container {
-        grid-template-columns: repeat(3, 1fr);
+        column-count: 3;
     }
 }
 
 @media (max-width: 768px) {
     #series-container {
-        grid-template-columns: repeat(2, 1fr);
+        column-count: 2;
     }
     
     .categorias-nav {
@@ -260,6 +260,6 @@ body {
 
 @media (max-width: 576px) {
     #series-container {
-        grid-template-columns: 1fr;
+        column-count: 1;
     }
 }
