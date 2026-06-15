@@ -1,5 +1,4 @@
 // Configuración de Firebase - Series Tracker
-// Proyecto: series-tracker-a8953
 const firebaseConfig = {
   apiKey: "AIzaSyDKLUWmgqjFqhp8CBvX1IgP0qpWV2l17JY",
   authDomain: "series-tracker-a8953.firebaseapp.com",
@@ -18,6 +17,4 @@ const db = firebase.firestore();
 // Referencia a la colección de series
 const seriesRef = db.collection('series');
 
-// Verificación en consola
 console.log('✅ Firebase inicializado correctamente');
-console.log('📦 Firestore conectado a colección: series');
