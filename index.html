@@ -3,146 +3,213 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Series Tracker</title>
-    
-    <!-- Bootstrap CSS -->
+    <title>Series Tracker – Iniciar Sesión</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Estilos personalizados -->
     <link rel="stylesheet" href="css/styles.css">
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        }
+
+        .login-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(233, 69, 96, 0.3);
+            border-radius: 20px;
+            padding: 2.5rem;
+            width: 100%;
+            max-width: 400px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .login-logo {
+            font-size: 3.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .login-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .login-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+        }
+
+        .form-control {
+            background-color: rgba(255, 255, 255, 0.08) !important;
+            border: 1px solid rgba(255, 255, 255, 0.15) !important;
+            color: var(--text-primary) !important;
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .form-control:focus {
+            border-color: var(--accent) !important;
+            box-shadow: 0 0 0 0.2rem rgba(233, 69, 96, 0.25) !important;
+        }
+
+        .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .input-group-text {
+            background-color: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: var(--text-secondary);
+            border-radius: 10px 0 0 10px;
+        }
+
+        .input-group .form-control {
+            border-radius: 0 10px 10px 0 !important;
+        }
+
+        .btn-login {
+            background: linear-gradient(135deg, var(--accent), #c73e54);
+            border: none;
+            border-radius: 10px;
+            padding: 0.75rem;
+            font-size: 1rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(233, 69, 96, 0.3);
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(233, 69, 96, 0.4);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
+
+        .error-msg {
+            background: rgba(233, 69, 96, 0.15);
+            border: 1px solid rgba(233, 69, 96, 0.4);
+            border-radius: 8px;
+            padding: 0.6rem 1rem;
+            font-size: 0.9rem;
+            color: #ff8a9a;
+            display: none;
+        }
+
+        .toggle-password {
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: color 0.2s;
+        }
+
+        .toggle-password:hover {
+            color: var(--text-primary);
+        }
+    </style>
 </head>
 <body>
-    <!-- Navbar -->
-    <nav class="navbar navbar-dark bg-dark mb-4">
-        <div class="container">
-            <span class="navbar-brand mb-0 h1">
-                <i class="fas fa-tv me-2"></i>Series Tracker
-            </span>
-            <button class="btn btn-primary" onclick="abrirModalAgregar()">
-                <i class="fas fa-plus me-1"></i> Nueva Serie
-            </button>
+    <div class="login-card text-center">
+        <div class="login-logo">📺</div>
+        <div class="login-title">Series Tracker</div>
+        <div class="login-subtitle">Inicia sesión para continuar</div>
+
+        <div class="error-msg mb-3" id="errorMsg">
+            <i class="fas fa-exclamation-circle me-2"></i>
+            <span id="errorText">Credenciales incorrectas</span>
         </div>
-    </nav>
 
-    <div class="container">
-        <!-- Navegación de categorías -->
-        <ul class="nav nav-pills mb-4 categorias-nav" id="categoriasTab" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" data-categoria="pendiente_estreno">
-                    <i class="fas fa-clock me-1"></i> Pendientes de Estreno
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" data-categoria="en_emision">
-                    <i class="fas fa-play me-1"></i> En Emisión
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" data-categoria="a_medias">
-                    <i class="fas fa-pause me-1"></i> A Medias
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" data-categoria="pendientes">
-                    <i class="fas fa-bookmark me-1"></i> Pendientes
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" data-categoria="vistas">
-                    <i class="fas fa-check me-1"></i> Vistas
-                </button>
-            </li>
-        </ul>
-
-        <!-- Contenedor de series -->
-        <div id="series-container">
-            <!-- Las tarjetas se generan dinámicamente aquí -->
-        </div>
-    </div>
-
-    <!-- Modal para Agregar/Editar Serie -->
-    <div class="modal fade" id="modalSerie" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content bg-dark text-white">
-                <div class="modal-header border-secondary">
-                    <h5 class="modal-title" id="modalTitulo">Nueva Serie</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="formSerie">
-                        <input type="hidden" id="serieId">
-                        
-                        <!-- Título -->
-                        <div class="mb-3">
-                            <label class="form-label">Título *</label>
-                            <input type="text" class="form-control bg-dark text-white" id="titulo" required>
-                        </div>
-
-                        <!-- Categoría -->
-                        <div class="mb-3">
-                            <label class="form-label">Categoría *</label>
-                            <select class="form-select bg-dark text-white" id="categoria" required>
-                                <option value="pendiente_estreno">Pendiente de Estreno</option>
-                                <option value="en_emision">En Emisión</option>
-                                <option value="a_medias">A Medias</option>
-                                <option value="pendientes">Pendientes</option>
-                                <option value="vistas">Vistas</option>
-                            </select>
-                        </div>
-
-                        <!-- Portada -->
-                        <div class="mb-3">
-                            <label class="form-label">URL de Portada</label>
-                            <input type="url" class="form-control bg-dark text-white" id="portada" placeholder="https://...">
-                        </div>
-
-                        <!-- Campos específicos por categoría -->
-                        <div id="camposExtras">
-                            <!-- Se llenan dinámicamente según la categoría -->
-                        </div>
-
-                        <!-- Botones -->
-                        <div class="d-flex justify-content-end gap-2">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                            <button type="submit" class="btn btn-primary">Guardar</button>
-                        </div>
-                    </form>
-                </div>
+        <div class="mb-3 text-start">
+            <label class="form-label text-secondary small">Usuario</label>
+            <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-user"></i></span>
+                <input type="text" class="form-control" id="usuario" placeholder="Usuario" autocomplete="username">
             </div>
         </div>
-    </div>
 
-    <!-- Modal para Checklist de Capítulos -->
-    <div class="modal fade" id="modalChecklist" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content bg-dark text-white">
-                <div class="modal-header border-secondary">
-                    <h5 class="modal-title">Checklist de Capítulos</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body" id="checklistBody">
-                    <!-- Se llena dinámicamente -->
-                </div>
+        <div class="mb-4 text-start">
+            <label class="form-label text-secondary small">Contraseña</label>
+            <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                <input type="password" class="form-control" id="password" placeholder="Contraseña" autocomplete="current-password">
+                <span class="input-group-text toggle-password" onclick="togglePassword()">
+                    <i class="fas fa-eye" id="eyeIcon"></i>
+                </span>
             </div>
         </div>
+
+        <button class="btn btn-login btn-primary w-100 text-white" onclick="iniciarSesion()" id="btnLogin">
+            <i class="fas fa-sign-in-alt me-2"></i> Entrar
+        </button>
     </div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore-compat.js"></script>
-    
-    <!-- Scripts de la aplicación -->
-    <script src="js/config.js"></script>
-    <script src="js/checklist.js"></script>
-    <script src="js/series.js"></script>
-    <script src="js/imageManager.js"></script>
-    <script src="js/ui.js"></script>
-    <script src="js/app.js"></script>
+    <script>
+        // Credenciales
+        const CREDENCIALES = { usuario: 'rcseries', password: 'rcseries' };
+
+        // Si ya está logueado, redirigir
+        if (sessionStorage.getItem('st_auth') === 'true') {
+            window.location.href = 'pendiente_estreno.html';
+        }
+
+        function iniciarSesion() {
+            const usuario = document.getElementById('usuario').value.trim();
+            const password = document.getElementById('password').value;
+            const errorMsg = document.getElementById('errorMsg');
+            const btn = document.getElementById('btnLogin');
+
+            if (!usuario || !password) {
+                mostrarError('Por favor completa todos los campos');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Verificando...';
+
+            setTimeout(() => {
+                if (usuario === CREDENCIALES.usuario && password === CREDENCIALES.password) {
+                    sessionStorage.setItem('st_auth', 'true');
+                    sessionStorage.setItem('st_user', usuario);
+                    window.location.href = 'pendiente_estreno.html';
+                } else {
+                    mostrarError('Usuario o contraseña incorrectos');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i> Entrar';
+                }
+            }, 600);
+        }
+
+        function mostrarError(msg) {
+            const errorMsg = document.getElementById('errorMsg');
+            document.getElementById('errorText').textContent = msg;
+            errorMsg.style.display = 'block';
+            setTimeout(() => { errorMsg.style.display = 'none'; }, 3000);
+        }
+
+        function togglePassword() {
+            const input = document.getElementById('password');
+            const icon = document.getElementById('eyeIcon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fas fa-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'fas fa-eye';
+            }
+        }
+
+        // Enter para login
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') iniciarSesion();
+        });
+    </script>
 </body>
 </html>
