@@ -17,8 +17,8 @@ class UIManager {
         const container = document.getElementById('series-container');
         container.innerHTML = '';
         
-        // Loader centrado
-        container.style.columnCount = '1';
+        // Loader centrado (grid de 1 columna para el spinner)
+        container.style.gridTemplateColumns = '1fr';
         container.innerHTML = '<div style="text-align: center; padding: 3rem;"><div class="spinner-border text-primary" role="status"></div></div>';
         
         try {
@@ -33,17 +33,22 @@ class UIManager {
                 return true;
             });
             
+            // Ordenar según categoría
             if (categoria === 'pendiente_estreno') {
                 series = SeriesManager.ordenarPendientesEstreno(series);
+            } else if (categoria === 'en_emision') {
+                series = SeriesManager.ordenarEnEmision(series);
             }
             
+            // Guardar en caché (limpiar primero si se forzó)
+            if (forzar) delete this.seriesCache[categoria];
             this.seriesCache[categoria] = series;
             this.ultimaCategoria = categoria;
             
             container.innerHTML = '';
             
             if (series.length === 0) {
-                container.style.columnCount = '1';
+                container.style.gridTemplateColumns = '1fr';
                 container.innerHTML = `
                     <div style="text-align: center; padding: 3rem 0;">
                         <i class="fas fa-tv fa-4x mb-3" style="color: var(--text-secondary)"></i>
@@ -54,7 +59,7 @@ class UIManager {
                     </div>
                 `;
             } else {
-                // Restaurar columnas según pantalla
+                // Restaurar grid según pantalla
                 this.restaurarColumnas(container);
                 
                 // Crear todas las tarjetas
@@ -65,12 +70,12 @@ class UIManager {
             }
         } catch (error) {
             console.error('Error al renderizar:', error);
-            container.style.columnCount = '1';
+            container.style.gridTemplateColumns = '1fr';
             container.innerHTML = `
                 <div style="text-align: center; padding: 3rem 0;">
                     <i class="fas fa-exclamation-triangle fa-4x mb-3" style="color: var(--accent)"></i>
                     <h4 style="color: var(--text-secondary)">Error al cargar series</h4>
-                    <button class="btn btn-primary mt-3" onclick="UIManager.renderizarSeries(categoriaActual, true)">Reintentar</button>
+                    <button class="btn btn-primary mt-3" onclick="UIManager.renderizarSeries(CATEGORIA_ACTUAL, true)">Reintentar</button>
                 </div>
             `;
         } finally {
@@ -82,13 +87,13 @@ class UIManager {
     static restaurarColumnas(container) {
         const ancho = window.innerWidth;
         if (ancho <= 576) {
-            container.style.columnCount = '1';
+            container.style.gridTemplateColumns = 'repeat(1, 1fr)';
         } else if (ancho <= 768) {
-            container.style.columnCount = '2';
+            container.style.gridTemplateColumns = 'repeat(2, 1fr)';
         } else if (ancho <= 1200) {
-            container.style.columnCount = '3';
+            container.style.gridTemplateColumns = 'repeat(3, 1fr)';
         } else {
-            container.style.columnCount = '4';
+            container.style.gridTemplateColumns = 'repeat(4, 1fr)';
         }
     }
 
@@ -99,7 +104,7 @@ class UIManager {
         container.innerHTML = '';
         
         if (series.length === 0) {
-            container.style.columnCount = '1';
+            container.style.gridTemplateColumns = '1fr';
             container.innerHTML = `
                 <div style="text-align: center; padding: 3rem 0;">
                     <i class="fas fa-tv fa-4x mb-3" style="color: var(--text-secondary)"></i>
