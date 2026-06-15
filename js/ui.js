@@ -4,96 +4,113 @@ class UIManager {
     static ultimaCategoria = '';
     static seriesCache = {};
 
-    // Renderizar series en el contenedor
+    // Calcular número de columnas según ancho
+    static obtenerNumColumnas() {
+        const ancho = window.innerWidth;
+        if (ancho <= 576) return 1;
+        if (ancho <= 768) return 2;
+        if (ancho <= 1200) return 3;
+        return 4;
+    }
+
+    // Renderizar series con layout masonry de columnas JS
     static async renderizarSeries(categoria, forzar = false) {
         if (this.renderizando && !forzar) return;
-        
+
         if (!forzar && categoria === this.ultimaCategoria && this.seriesCache[categoria]) {
             this.mostrarDesdeCache(categoria);
             return;
         }
-        
+
         this.renderizando = true;
         const container = document.getElementById('series-container');
         container.innerHTML = '';
-        
-        // Loader centrado (grid de 1 columna para el spinner)
-        container.style.gridTemplateColumns = '1fr';
-        container.innerHTML = '<div style="text-align: center; padding: 3rem;"><div class="spinner-border text-primary" role="status"></div></div>';
-        
+        container.style.cssText = '';
+
+        // Spinner centrado mientras carga
+        container.innerHTML = '<div style="text-align:center;padding:3rem;width:100%;"><div class="spinner-border text-primary" role="status"></div></div>';
+
         try {
             let series = await SeriesManager.obtenerSeries(categoria);
             series = series.filter(s => s.categoria === categoria);
-            
-            // Eliminar duplicados
+
+            // Eliminar duplicados por id
             const idsVistos = new Set();
             series = series.filter(s => {
                 if (idsVistos.has(s.id)) return false;
                 idsVistos.add(s.id);
                 return true;
             });
-            
+
             // Ordenar según categoría
             if (categoria === 'pendiente_estreno') {
                 series = SeriesManager.ordenarPendientesEstreno(series);
             } else if (categoria === 'en_emision') {
                 series = SeriesManager.ordenarEnEmision(series);
             }
-            
-            // Guardar en caché (limpiar primero si se forzó)
+
+            // Guardar en caché
             if (forzar) delete this.seriesCache[categoria];
             this.seriesCache[categoria] = series;
             this.ultimaCategoria = categoria;
-            
+
             container.innerHTML = '';
-            
+
             if (series.length === 0) {
-                container.style.gridTemplateColumns = '1fr';
                 container.innerHTML = `
-                    <div style="text-align: center; padding: 3rem 0;">
-                        <i class="fas fa-tv fa-4x mb-3" style="color: var(--text-secondary)"></i>
-                        <h4 style="color: var(--text-secondary)">No hay series en esta categoría</h4>
+                    <div style="text-align:center;padding:3rem 0;width:100%;">
+                        <i class="fas fa-tv fa-4x mb-3" style="color:var(--text-secondary)"></i>
+                        <h4 style="color:var(--text-secondary)">No hay series en esta categoría</h4>
                         <button class="btn btn-primary mt-3" onclick="abrirModalAgregar()">
                             <i class="fas fa-plus me-1"></i> Agregar Serie
                         </button>
-                    </div>
-                `;
-            } else {
-                // Restaurar grid según pantalla
-                this.restaurarColumnas(container);
-                
-                // Crear todas las tarjetas
-                for (const serie of series) {
-                    const tarjeta = await this.crearTarjetaSerie(serie);
-                    container.appendChild(tarjeta);
-                }
+                    </div>`;
+                return;
             }
+
+            await this.renderizarMasonry(container, series);
+
         } catch (error) {
             console.error('Error al renderizar:', error);
-            container.style.gridTemplateColumns = '1fr';
             container.innerHTML = `
-                <div style="text-align: center; padding: 3rem 0;">
-                    <i class="fas fa-exclamation-triangle fa-4x mb-3" style="color: var(--accent)"></i>
-                    <h4 style="color: var(--text-secondary)">Error al cargar series</h4>
-                    <button class="btn btn-primary mt-3" onclick="UIManager.renderizarSeries(CATEGORIA_ACTUAL, true)">Reintentar</button>
-                </div>
-            `;
+                <div style="text-align:center;padding:3rem 0;width:100%;">
+                    <i class="fas fa-exclamation-triangle fa-4x mb-3" style="color:var(--accent)"></i>
+                    <h4 style="color:var(--text-secondary)">Error al cargar series</h4>
+                    <button class="btn btn-primary mt-3" onclick="UIManager.renderizarSeries(CATEGORIA_ACTUAL,true)">Reintentar</button>
+                </div>`;
         } finally {
             this.renderizando = false;
         }
     }
 
-    // Restaurar columnas según ancho de pantalla
-    static restaurarColumnas(container) {
-        const ancho = window.innerWidth;
-        if (ancho <= 576) {
-            container.style.gridTemplateColumns = 'repeat(1, 1fr)';
-        } else if (ancho <= 768) {
-            container.style.gridTemplateColumns = 'repeat(2, 1fr)';
-        } else if (ancho <= 1200) {
-            container.style.gridTemplateColumns = 'repeat(3, 1fr)';
-        } else {
-            container.style.gridTemplateColumns = 'repeat(4, 1fr)';
+    // Masonry real: distribuye tarjetas en la columna más corta
+    static async renderizarMasonry(container, series) {
+        const numCols = this.obtenerNumColumnas();
+        const gap = 10; // px
+
+        // Contenedor flex
+        container.style.cssText = `display:flex;gap:${gap}px;align-items:flex-start;`;
+
+        // Crear columnas vacías
+        const columnas = [];
+        for (let i = 0; i < numCols; i++) {
+            const col = document.createElement('div');
+            col.style.cssText = `flex:1;display:flex;flex-direction:column;gap:${gap}px;`;
+            container.appendChild(col);
+            columnas.push({ el: col, altura: 0 });
+        }
+
+        // Distribuir cada tarjeta en la columna más corta
+        for (const serie of series) {
+            const tarjeta = await this.crearTarjetaSerie(serie);
+
+            // Columna con menor altura acumulada
+            const colMin = columnas.reduce((a, b) => a.altura <= b.altura ? a : b);
+            colMin.el.appendChild(tarjeta);
+
+            // Actualizar altura estimada (usamos offsetHeight si ya está en DOM)
+            await new Promise(r => requestAnimationFrame(r));
+            colMin.altura = colMin.el.scrollHeight;
         }
     }
 
@@ -102,24 +119,18 @@ class UIManager {
         const container = document.getElementById('series-container');
         const series = this.seriesCache[categoria] || [];
         container.innerHTML = '';
-        
+        container.style.cssText = '';
+
         if (series.length === 0) {
-            container.style.gridTemplateColumns = '1fr';
             container.innerHTML = `
-                <div style="text-align: center; padding: 3rem 0;">
-                    <i class="fas fa-tv fa-4x mb-3" style="color: var(--text-secondary)"></i>
-                    <h4 style="color: var(--text-secondary)">No hay series en esta categoría</h4>
-                </div>
-            `;
+                <div style="text-align:center;padding:3rem 0;width:100%;">
+                    <i class="fas fa-tv fa-4x mb-3" style="color:var(--text-secondary)"></i>
+                    <h4 style="color:var(--text-secondary)">No hay series en esta categoría</h4>
+                </div>`;
             return;
         }
-        
-        this.restaurarColumnas(container);
-        
-        for (const serie of series) {
-            const tarjeta = await this.crearTarjetaSerie(serie);
-            container.appendChild(tarjeta);
-        }
+
+        await this.renderizarMasonry(container, series);
     }
 
     // Crear tarjeta de serie
