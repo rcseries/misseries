@@ -19,3 +19,7 @@ Aplicación web para llevar control de las series que ves.
 ## Uso
 
 Abrir `index.html` en un servidor web.
+
+
+git commit --allow-empty -m "Fix pages build"
+git push
