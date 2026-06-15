@@ -17,4 +17,29 @@ const db = firebase.firestore();
 // Referencia a la colección de series
 const seriesRef = db.collection('series');
 
+// Configuración de servicios de imágenes soportados
+const IMAGE_SERVICES = {
+    drive: {
+        name: 'Google Drive',
+        pattern: /drive\.google\.com/,
+        icon: 'fab fa-google-drive'
+    },
+    imgur: {
+        name: 'Imgur',
+        pattern: /imgur\.com/,
+        icon: 'fab fa-imgur'
+    },
+    cloudinary: {
+        name: 'Cloudinary',
+        pattern: /cloudinary\.com/,
+        icon: 'fas fa-cloud'
+    },
+    direct: {
+        name: 'URL Directa',
+        pattern: /\.(jpg|jpeg|png|gif|webp|svg)/i,
+        icon: 'fas fa-link'
+    }
+};
+
 console.log('✅ Firebase inicializado correctamente');
+console.log('🖼️ Sistema de portadas configurado');
