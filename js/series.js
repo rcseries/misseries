@@ -189,6 +189,34 @@ class SeriesManager {
             }
         });
     }
+
+    // Ordenar series En Emisión por fecha del próximo capítulo, luego alfabético
+    static ordenarEnEmision(series) {
+        return series.sort((a, b) => {
+            const proxA = ChecklistManager.obtenerProximoCapitulo(a.capitulos_checklist || []);
+            const proxB = ChecklistManager.obtenerProximoCapitulo(b.capitulos_checklist || []);
+
+            const parsear = (cap) => {
+                if (!cap || !cap.fecha) return null;
+                const partes = cap.fecha.split('-');
+                if (partes.length !== 3) return null;
+                return new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+            };
+
+            const fechaA = parsear(proxA);
+            const fechaB = parsear(proxB);
+
+            // Sin próximo capítulo va al final
+            if (!fechaA && !fechaB) return a.titulo.localeCompare(b.titulo);
+            if (!fechaA) return 1;
+            if (!fechaB) return -1;
+
+            const diff = fechaA - fechaB;
+            // Si misma fecha → alfabético
+            if (diff === 0) return a.titulo.localeCompare(b.titulo);
+            return diff;
+        });
+    }
 }
 
 console.log('✅ SeriesManager cargado');
