@@ -1,5 +1,5 @@
 class UIManager {
-    // Variable para evitar renderizados múltiples
+    // Control de renderizado
     static renderizando = false;
     static ultimaCategoria = '';
     static seriesCache = {};
@@ -8,28 +8,26 @@ class UIManager {
     static async renderizarSeries(categoria, forzar = false) {
         // Evitar renderizados múltiples simultáneos
         if (this.renderizando && !forzar) {
-            console.log('⏳ Renderizado en progreso, esperando...');
             return;
         }
         
-        // Si es la misma categoría y ya tenemos cache, usar cache
+        // Usar cache si es la misma categoría
         if (!forzar && categoria === this.ultimaCategoria && this.seriesCache[categoria]) {
-            console.log('📦 Usando cache para:', categoria);
-            this.mostrarSeriesEnContainer(this.seriesCache[categoria], categoria);
+            this.mostrarDesdeCache(categoria);
             return;
         }
         
         this.renderizando = true;
         const container = document.getElementById('series-container');
         
-        // Limpiar completamente el contenedor
+        // Limpiar completamente
         container.innerHTML = '';
         
-        // Mostrar loader
+        // Loader
         const loader = document.createElement('div');
-        loader.style.gridColumn = '1 / -1';
         loader.style.textAlign = 'center';
         loader.style.padding = '3rem';
+        loader.style.width = '100%';
         loader.innerHTML = '<div class="spinner-border text-primary" role="status"></div>';
         container.appendChild(loader);
         
@@ -54,7 +52,7 @@ class UIManager {
                 series = SeriesManager.ordenarPendientesEstreno(series);
             }
             
-            // Guardar en cache
+            // Guardar en cache (solo datos, no HTML)
             this.seriesCache[categoria] = series;
             this.ultimaCategoria = categoria;
             
@@ -62,8 +60,9 @@ class UIManager {
             container.innerHTML = '';
             
             if (series.length === 0) {
+                container.style.columnCount = '1';
                 container.innerHTML = `
-                    <div style="grid-column: 1 / -1; text-align: center; padding: 3rem 0;">
+                    <div style="text-align: center; padding: 3rem 0; width: 100%;">
                         <i class="fas fa-tv fa-4x mb-3" style="color: var(--text-secondary)"></i>
                         <h4 style="color: var(--text-secondary)">No hay series en esta categoría</h4>
                         <button class="btn btn-primary mt-3" onclick="abrirModalAgregar()">
@@ -72,25 +71,20 @@ class UIManager {
                     </div>
                 `;
             } else {
-                // Crear todas las tarjetas
-                const fragment = document.createDocumentFragment();
+                // Restaurar columnas según pantalla
+                this.restaurarColumnas();
                 
+                // Crear todas las tarjetas
                 for (const serie of series) {
                     const tarjeta = await this.crearTarjetaSerie(serie);
-                    fragment.appendChild(tarjeta);
+                    container.appendChild(tarjeta);
                 }
-                
-                container.appendChild(fragment);
-                
-                // Aplicar Masonry después de que todas las imágenes carguen
-                setTimeout(() => {
-                    this.aplicarMasonry();
-                }, 500);
             }
         } catch (error) {
             console.error('Error al renderizar:', error);
+            container.style.columnCount = '1';
             container.innerHTML = `
-                <div style="grid-column: 1 / -1; text-align: center; padding: 3rem 0;">
+                <div style="text-align: center; padding: 3rem 0; width: 100%;">
                     <i class="fas fa-exclamation-triangle fa-4x mb-3" style="color: var(--accent)"></i>
                     <h4 style="color: var(--text-secondary)">Error al cargar series</h4>
                     <button class="btn btn-primary mt-3" onclick="UIManager.renderizarSeries(categoriaActual, true)">
@@ -103,14 +97,33 @@ class UIManager {
         }
     }
 
-    // Mostrar series ya cargadas en el contenedor
-    static mostrarSeriesEnContainer(series, categoria) {
+    // Restaurar número de columnas según pantalla
+    static restaurarColumnas() {
         const container = document.getElementById('series-container');
+        const ancho = window.innerWidth;
+        
+        if (ancho <= 576) {
+            container.style.columnCount = '1';
+        } else if (ancho <= 768) {
+            container.style.columnCount = '2';
+        } else if (ancho <= 1200) {
+            container.style.columnCount = '3';
+        } else {
+            container.style.columnCount = '4';
+        }
+    }
+
+    // Mostrar desde cache
+    static mostrarDesdeCache(categoria) {
+        const container = document.getElementById('series-container');
+        const series = this.seriesCache[categoria] || [];
+        
         container.innerHTML = '';
         
         if (series.length === 0) {
+            container.style.columnCount = '1';
             container.innerHTML = `
-                <div style="grid-column: 1 / -1; text-align: center; padding: 3rem 0;">
+                <div style="text-align: center; padding: 3rem 0; width: 100%;">
                     <i class="fas fa-tv fa-4x mb-3" style="color: var(--text-secondary)"></i>
                     <h4 style="color: var(--text-secondary)">No hay series en esta categoría</h4>
                 </div>
@@ -118,31 +131,12 @@ class UIManager {
             return;
         }
         
-        const fragment = document.createDocumentFragment();
-        series.forEach(serie => {
-            const div = document.createElement('div');
-            div.innerHTML = serie.html;
-            fragment.appendChild(div.firstElementChild);
-        });
-        container.appendChild(fragment);
+        this.restaurarColumnas();
         
-        setTimeout(() => {
-            this.aplicarMasonry();
-        }, 300);
-    }
-    // Ajustar grid para que no queden espacios
-    static aplicarMasonry() {
-        const container = document.getElementById('series-container');
-        if (!container) return;
-        
-        const cards = container.querySelectorAll('.serie-card');
-        if (cards.length === 0) return;
-        
-        // Pequeño retraso para asegurar que las imágenes cargaron
-        cards.forEach(card => {
-            const altura = card.offsetHeight;
-            // Asignar filas necesarias (1px por fila)
-            card.style.setProperty('--card-rows', altura);
+        // Recrear tarjetas desde los datos en cache
+        series.forEach(async (serie) => {
+            const tarjeta = await this.crearTarjetaSerie(serie);
+            container.appendChild(tarjeta);
         });
     }
 
@@ -150,7 +144,6 @@ class UIManager {
     static crearTarjetaSerie(serie) {
         return new Promise((resolve) => {
             const div = document.createElement('div');
-            div.style.gridRowEnd = 'span 1';
             
             const portadaData = ImageManager.obtenerPortada(serie.portada, serie.titulo);
             const portada = portadaData.url;
@@ -257,7 +250,6 @@ class UIManager {
             
             img.onerror = () => generarHTML();
             
-            // Timeout de seguridad
             setTimeout(() => {
                 if (!div.innerHTML) generarHTML();
             }, 3000);
