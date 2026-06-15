@@ -6,6 +6,7 @@
     --accent: #e94560;
     --text-primary: #ffffff;
     --text-secondary: #a0a0a0;
+    --card-gap: 0.5cm;
 }
 
 body {
@@ -42,22 +43,25 @@ body {
     color: white !important;
 }
 
-/* Contenedor - 4 columnas fijas */
+/* ============ CONTENEDOR MASONRY ============ */
 #series-container {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 0.5cm;
-    align-items: start;
+    column-count: 4;
+    column-gap: var(--card-gap);
+    padding: 0;
+    margin: 0;
 }
 
-/* Tarjetas */
+/* Tarjetas - se adaptan al flujo de columnas */
 .serie-card {
+    break-inside: avoid;
+    margin-bottom: var(--card-gap);
     border-radius: 15px;
     overflow: hidden;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
     cursor: pointer;
-    display: flex;
-    flex-direction: column;
+    display: inline-block;
+    width: 100%;
+    background-color: #333;
 }
 
 .serie-card:hover {
@@ -69,7 +73,6 @@ body {
 .serie-card .imagen-container {
     width: 100%;
     line-height: 0;
-    flex-shrink: 0;
 }
 
 .serie-card .imagen-container img {
@@ -81,7 +84,6 @@ body {
 /* Info overlay */
 .serie-card .info-overlay {
     padding: 1rem;
-    flex-shrink: 0;
 }
 
 .serie-card .card-title {
@@ -230,4 +232,38 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: #c73e54;
+}
+
+/* ============ RESPONSIVE ============ */
+/* Tablet grande - 3 columnas */
+@media (max-width: 1200px) {
+    #series-container {
+        column-count: 3;
+    }
+}
+
+/* Tablet - 2 columnas */
+@media (max-width: 768px) {
+    #series-container {
+        column-count: 2;
+    }
+    
+    .categorias-nav {
+        flex-direction: column;
+    }
+    
+    .serie-card .info-overlay {
+        padding: 0.75rem;
+    }
+    
+    .serie-card .card-title {
+        font-size: 0.95rem;
+    }
+}
+
+/* Móvil - 1 columna */
+@media (max-width: 576px) {
+    #series-container {
+        column-count: 1;
+    }
 }
