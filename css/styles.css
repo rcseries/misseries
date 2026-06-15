@@ -1,265 +1,323 @@
-/* Variables y tema oscuro */
-:root {
-    --bg-primary: #1a1a2e;
-    --bg-secondary: #16213e;
-    --bg-card: #0f3460;
-    --accent: #e94560;
-    --text-primary: #ffffff;
-    --text-secondary: #a0a0a0;
-    --card-gap: 0.5cm;
-}
+class UIManager {
+    // Control de renderizado
+    static renderizando = false;
+    static ultimaCategoria = '';
+    static seriesCache = {};
 
-body {
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-/* Navegación de categorías */
-.categorias-nav {
-    background-color: var(--bg-secondary);
-    padding: 10px;
-    border-radius: 10px;
-    flex-wrap: wrap;
-    gap: 5px;
-}
-
-.categorias-nav .nav-link {
-    color: var(--text-secondary) !important;
-    border-radius: 20px;
-    padding: 8px 20px;
-    transition: all 0.3s ease;
-    background: none;
-    border: none;
-}
-
-.categorias-nav .nav-link:hover {
-    color: var(--text-primary) !important;
-    background-color: rgba(255, 255, 255, 0.1);
-}
-
-.categorias-nav .nav-link.active {
-    background-color: var(--accent) !important;
-    color: white !important;
-}
-
-/* ============ CONTENEDOR MASONRY TIPO PINTEREST ============ */
-#series-container {
-    column-count: 4;
-    column-gap: var(--card-gap);
-    padding: 0;
-    margin: 0;
-}
-
-/* Tarjetas - NO se rompen entre columnas */
-.serie-card {
-    break-inside: avoid;
-    margin-bottom: var(--card-gap);
-    border-radius: 15px;
-    overflow: hidden;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    cursor: pointer;
-    display: block;
-    width: 100%;
-}
-
-.serie-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
-}
-
-/* Imagen - MANTIENE su aspect-ratio original */
-.serie-card .imagen-container {
-    width: 100%;
-    line-height: 0;
-}
-
-.serie-card .imagen-container img {
-    width: 100%;
-    height: auto;
-    display: block;
-}
-
-/* Info overlay */
-.serie-card .info-overlay {
-    padding: 1rem;
-}
-
-.serie-card .card-title {
-    font-size: 1.1rem;
-    margin-bottom: 0.5rem;
-    font-weight: bold;
-}
-
-/* Próximo capítulo */
-.proximo-capitulo {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
-    padding: 8px 12px;
-    transition: all 0.3s ease;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    margin-top: 8px;
-}
-
-.proximo-capitulo:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: scale(1.02);
-}
-
-/* Estrellas */
-.rating {
-    display: flex;
-    flex-direction: row-reverse;
-    justify-content: flex-end;
-}
-
-.rating input {
-    display: none;
-}
-
-.rating label {
-    cursor: pointer;
-    font-size: 2rem;
-    color: #444;
-    transition: color 0.2s;
-}
-
-.rating input:checked ~ label,
-.rating label:hover,
-.rating label:hover ~ label {
-    color: #ffd700;
-}
-
-/* Checklist */
-.capitulo-item {
-    padding: 10px 15px;
-    margin: 5px 0;
-    background-color: rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    transition: background-color 0.3s;
-}
-
-.capitulo-item:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-}
-
-.capitulo-item input[type="checkbox"] {
-    margin-right: 15px;
-    transform: scale(1.3);
-    cursor: pointer;
-}
-
-.capitulo-item.completado {
-    opacity: 0.7;
-    background-color: rgba(39, 174, 96, 0.1);
-}
-
-.capitulo-item.completado .capitulo-texto {
-    text-decoration: line-through;
-}
-
-/* Días de emisión */
-.dias-emision {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.dia-badge {
-    padding: 5px 12px;
-    background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 15px;
-    cursor: pointer;
-    transition: all 0.3s;
-    user-select: none;
-}
-
-.dia-badge.seleccionado {
-    background-color: var(--accent);
-}
-
-/* Animaciones */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
+    // Renderizar series en el contenedor
+    static async renderizarSeries(categoria, forzar = false) {
+        if (this.renderizando && !forzar) return;
+        
+        if (!forzar && categoria === this.ultimaCategoria && this.seriesCache[categoria]) {
+            this.mostrarDesdeCache(categoria);
+            return;
+        }
+        
+        this.renderizando = true;
+        const container = document.getElementById('series-container');
+        container.innerHTML = '';
+        
+        // Loader centrado
+        container.style.columnCount = '1';
+        container.innerHTML = '<div style="text-align: center; padding: 3rem;"><div class="spinner-border text-primary" role="status"></div></div>';
+        
+        try {
+            let series = await SeriesManager.obtenerSeries(categoria);
+            series = series.filter(s => s.categoria === categoria);
+            
+            // Eliminar duplicados
+            const idsVistos = new Set();
+            series = series.filter(s => {
+                if (idsVistos.has(s.id)) return false;
+                idsVistos.add(s.id);
+                return true;
+            });
+            
+            if (categoria === 'pendiente_estreno') {
+                series = SeriesManager.ordenarPendientesEstreno(series);
+            }
+            
+            this.seriesCache[categoria] = series;
+            this.ultimaCategoria = categoria;
+            
+            container.innerHTML = '';
+            
+            if (series.length === 0) {
+                container.style.columnCount = '1';
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 3rem 0;">
+                        <i class="fas fa-tv fa-4x mb-3" style="color: var(--text-secondary)"></i>
+                        <h4 style="color: var(--text-secondary)">No hay series en esta categoría</h4>
+                        <button class="btn btn-primary mt-3" onclick="abrirModalAgregar()">
+                            <i class="fas fa-plus me-1"></i> Agregar Serie
+                        </button>
+                    </div>
+                `;
+            } else {
+                // Restaurar columnas según pantalla
+                this.restaurarColumnas(container);
+                
+                // Crear todas las tarjetas
+                for (const serie of series) {
+                    const tarjeta = await this.crearTarjetaSerie(serie);
+                    container.appendChild(tarjeta);
+                }
+            }
+        } catch (error) {
+            console.error('Error al renderizar:', error);
+            container.style.columnCount = '1';
+            container.innerHTML = `
+                <div style="text-align: center; padding: 3rem 0;">
+                    <i class="fas fa-exclamation-triangle fa-4x mb-3" style="color: var(--accent)"></i>
+                    <h4 style="color: var(--text-secondary)">Error al cargar series</h4>
+                    <button class="btn btn-primary mt-3" onclick="UIManager.renderizarSeries(categoriaActual, true)">Reintentar</button>
+                </div>
+            `;
+        } finally {
+            this.renderizando = false;
+        }
     }
-    to {
-        opacity: 1;
-        transform: translateY(0);
+
+    // Restaurar columnas según ancho de pantalla
+    static restaurarColumnas(container) {
+        const ancho = window.innerWidth;
+        if (ancho <= 576) {
+            container.style.columnCount = '1';
+        } else if (ancho <= 768) {
+            container.style.columnCount = '2';
+        } else if (ancho <= 1200) {
+            container.style.columnCount = '3';
+        } else {
+            container.style.columnCount = '4';
+        }
+    }
+
+    // Mostrar desde cache
+    static async mostrarDesdeCache(categoria) {
+        const container = document.getElementById('series-container');
+        const series = this.seriesCache[categoria] || [];
+        container.innerHTML = '';
+        
+        if (series.length === 0) {
+            container.style.columnCount = '1';
+            container.innerHTML = `
+                <div style="text-align: center; padding: 3rem 0;">
+                    <i class="fas fa-tv fa-4x mb-3" style="color: var(--text-secondary)"></i>
+                    <h4 style="color: var(--text-secondary)">No hay series en esta categoría</h4>
+                </div>
+            `;
+            return;
+        }
+        
+        this.restaurarColumnas(container);
+        
+        for (const serie of series) {
+            const tarjeta = await this.crearTarjetaSerie(serie);
+            container.appendChild(tarjeta);
+        }
+    }
+
+    // Crear tarjeta de serie
+    static crearTarjetaSerie(serie) {
+        return new Promise((resolve) => {
+            const div = document.createElement('div');
+            
+            const portadaData = ImageManager.obtenerPortada(serie.portada, serie.titulo);
+            const portada = portadaData.url;
+            
+            const fechaEstreno = serie.fecha_estreno ? 
+                ChecklistManager.formatearFecha(serie.fecha_estreno) : '';
+            
+            let infoExtra = '';
+            
+            switch(serie.categoria) {
+                case 'en_emision':
+                    const capitulos = serie.capitulos_checklist || [];
+                    const capitulosVistos = capitulos.filter(c => c.visto).length;
+                    const totalCaps = serie.total_capitulos || capitulos.length || 0;
+                    const proximoCapitulo = ChecklistManager.obtenerProximoCapitulo(capitulos);
+                    
+                    let proximoHTML = '';
+                    if (proximoCapitulo) {
+                        proximoHTML = `
+                            <div class="proximo-capitulo" onclick="verChecklist('${serie.id}')">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-play-circle me-2"></i>
+                                    <div>
+                                        <small style="opacity: 0.8;">Próximo:</small>
+                                        <strong>Cap. ${proximoCapitulo.numero}</strong>
+                                        ${proximoCapitulo.visto ? '<i class="fas fa-check-circle text-success ms-1"></i>' : ''}
+                                        <br>
+                                        <small>📅 ${ChecklistManager.formatearFecha(proximoCapitulo.fecha)}</small>
+                                    </div>
+                                </div>
+                            </div>`;
+                    } else if (capitulos.length > 0 && capitulosVistos === capitulos.length) {
+                        proximoHTML = `
+                            <div class="proximo-capitulo" style="background: rgba(39, 174, 96, 0.2);">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    <div>
+                                        <small>¡Completado!</small>
+                                        <br><small>${capitulosVistos}/${totalCaps} vistos</small>
+                                    </div>
+                                </div>
+                            </div>`;
+                    }
+                    
+                    infoExtra = `
+                        <p class="mb-1"><small style="opacity: 0.9;">📺 ${capitulosVistos}/${totalCaps} capítulos</small></p>
+                        <div class="progress mb-2" style="height: 3px; background: rgba(255,255,255,0.2);">
+                            <div class="progress-bar bg-success" style="width: ${totalCaps > 0 ? (capitulosVistos / totalCaps) * 100 : 0}%"></div>
+                        </div>
+                        ${proximoHTML}`;
+                    break;
+                    
+                case 'vistas':
+                    infoExtra = `
+                        <div class="text-warning mb-1">${this.generarEstrellas(serie.calificacion || 0)}</div>
+                        ${!serie.calificacion ? '<small style="opacity: 0.7;">⭐ Sin calificar</small>' : ''}`;
+                    break;
+                    
+                case 'a_medias':
+                    const progreso = this.calcularProgreso(serie);
+                    infoExtra = `
+                        <div class="mt-1">
+                            <div class="d-flex justify-content-between">
+                                <small style="opacity: 0.8;">Progreso</small>
+                                <small style="opacity: 0.8;">${progreso}%</small>
+                            </div>
+                            <div class="progress" style="height: 4px; background: rgba(255,255,255,0.2);">
+                                <div class="progress-bar bg-info" style="width: ${progreso}%"></div>
+                            </div>
+                        </div>`;
+                    break;
+            }
+            
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.src = portada;
+            
+            const generarHTML = (r = 102, g = 126, b = 234, textoContraste = '#ffffff') => {
+                div.innerHTML = this.generarHTMLTarjeta(serie, portada, fechaEstreno, infoExtra, r, g, b, textoContraste);
+                resolve(div);
+            };
+            
+            img.onload = async () => {
+                try {
+                    const color = await ImageManager.obtenerColorPredominante(img);
+                    generarHTML(color.r, color.g, color.b, ImageManager.obtenerContraste(color.r, color.g, color.b));
+                } catch (e) { generarHTML(); }
+            };
+            
+            img.onerror = () => generarHTML();
+            
+            setTimeout(() => { if (!div.innerHTML) generarHTML(); }, 3000);
+        });
+    }
+
+    // Generar HTML de la tarjeta
+    static generarHTMLTarjeta(serie, portada, fechaEstreno, infoExtra, r, g, b, textoContraste) {
+        return `
+            <div class="serie-card" style="background-color: rgb(${r},${g},${b});" onclick="verDetalleSerie('${serie.id}')">
+                <div class="imagen-container">
+                    <img src="${portada}" alt="${serie.titulo}" style="width: 100%; height: auto; display: block;">
+                </div>
+                <div class="info-overlay" style="color: ${textoContraste};">
+                    <h5 class="card-title" style="color: ${textoContraste}; text-shadow: 0 1px 3px rgba(0,0,0,0.3);">${serie.titulo}</h5>
+                    ${fechaEstreno ? `<p class="mb-1"><small style="color: ${textoContraste}; opacity: 0.9;">📅 ${fechaEstreno}</small></p>` : ''}
+                    <div style="color: ${textoContraste}; opacity: 0.95;">${infoExtra}</div>
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                        <span class="badge" style="background-color: ${textoContraste === '#ffffff' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'}; color: ${textoContraste}; font-size: 0.75rem;">
+                            ${this.formatearCategoria(serie.categoria)}
+                        </span>
+                        <div class="dropdown" onclick="event.stopPropagation()">
+                            <button class="btn btn-sm" style="color: ${textoContraste};" data-bs-toggle="dropdown">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-dark">
+                                <li><a class="dropdown-item" href="#" onclick="editarSerie('${serie.id}')"><i class="fas fa-edit me-2"></i>Editar</a></li>
+                                ${serie.categoria === 'en_emision' ? `<li><a class="dropdown-item" href="#" onclick="verChecklist('${serie.id}')"><i class="fas fa-list-check me-2"></i>Ver Checklist</a></li>` : ''}
+                                ${serie.categoria === 'vistas' && !serie.calificacion ? `<li><a class="dropdown-item" href="#" onclick="calificarSerie('${serie.id}')"><i class="fas fa-star me-2"></i>Calificar</a></li>` : ''}
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-danger" href="#" onclick="eliminarSerie('${serie.id}')"><i class="fas fa-trash me-2"></i>Eliminar</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+    }
+
+    static generarEstrellas(calificacion) {
+        if (!calificacion || calificacion === 0) return '<small style="opacity: 0.5;">⭐ Sin calificar</small>';
+        let estrellas = '';
+        for (let i = 1; i <= 5; i++) {
+            if (i <= calificacion) estrellas += '<i class="fas fa-star"></i>';
+            else if (i - 0.5 === calificacion) estrellas += '<i class="fas fa-star-half-alt"></i>';
+            else estrellas += '<i class="far fa-star"></i>';
+        }
+        return estrellas;
+    }
+
+    static formatearCategoria(categoria) {
+        const cats = {
+            'pendiente_estreno': 'Próximo estreno',
+            'en_emision': 'En emisión',
+            'a_medias': 'A medias',
+            'pendientes': 'Pendiente',
+            'vistas': 'Vista'
+        };
+        return cats[categoria] || categoria;
+    }
+
+    static async mostrarChecklist(serieId) {
+        try {
+            const doc = await seriesRef.doc(serieId).get();
+            if (!doc.exists) return;
+            const serie = { id: doc.id, ...doc.data() };
+            const capitulos = ChecklistManager.normalizarCapitulos(serie.capitulos_checklist);
+            const body = document.getElementById('checklistBody');
+            
+            if (!capitulos || capitulos.length === 0) {
+                body.innerHTML = '<p class="text-center py-3">No hay checklist disponible.</p>';
+            } else {
+                const vistos = capitulos.filter(c => c.visto).length;
+                const total = capitulos.length;
+                body.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0">${serie.titulo}</h6>
+                        <small>${vistos}/${total} vistos</small>
+                    </div>
+                    <div class="progress mb-3" style="height: 6px; background: rgba(255,255,255,0.1);">
+                        <div class="progress-bar bg-success" style="width: ${(vistos/total)*100}%"></div>
+                    </div>
+                    ${capitulos.map(cap => `
+                        <div class="capitulo-item ${cap.visto ? 'completado' : ''}">
+                            <input type="checkbox" ${cap.visto ? 'checked' : ''} 
+                                   onchange="UIManager.toggleChecklist('${serieId}', ${cap.numero}, this.checked)">
+                            <span class="capitulo-texto">Capítulo ${cap.numero} - ${ChecklistManager.formatearFecha(cap.fecha)}</span>
+                            ${cap.visto ? '<i class="fas fa-check-circle text-success ms-auto"></i>' : ''}
+                        </div>
+                    `).join('')}`;
+            }
+            new bootstrap.Modal(document.getElementById('modalChecklist')).show();
+        } catch (error) { console.error('Error:', error); }
+    }
+
+    static async toggleChecklist(serieId, numeroCapitulo, visto) {
+        const resultado = await ChecklistManager.toggleCapitulo(serieId, numeroCapitulo, visto);
+        if (resultado === 'completado') {
+            bootstrap.Modal.getInstance(document.getElementById('modalChecklist'))?.hide();
+        } else if (resultado) {
+            setTimeout(() => this.mostrarChecklist(serieId), 300);
+        }
+    }
+
+    static calcularProgreso(serie) {
+        const capitulos = serie.capitulos_checklist || [];
+        if (capitulos.length === 0) return 0;
+        return Math.round((capitulos.filter(c => c.visto).length / capitulos.length) * 100);
     }
 }
 
-.serie-card {
-    animation: fadeIn 0.5s ease;
-}
-
-/* Modal */
-.modal-backdrop {
-    z-index: 1040 !important;
-}
-
-.modal {
-    z-index: 1050 !important;
-}
-
-.modal-content {
-    border: 1px solid var(--accent);
-}
-
-.form-control:focus,
-.form-select:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 0.25rem rgba(233, 69, 96, 0.25);
-}
-
-/* Scrollbar */
-::-webkit-scrollbar {
-    width: 10px;
-}
-
-::-webkit-scrollbar-track {
-    background: var(--bg-secondary);
-}
-
-::-webkit-scrollbar-thumb {
-    background: var(--accent);
-    border-radius: 5px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: #c73e54;
-}
-
-/* ============ RESPONSIVE ============ */
-@media (max-width: 1200px) {
-    #series-container {
-        column-count: 3;
-    }
-}
-
-@media (max-width: 768px) {
-    #series-container {
-        column-count: 2;
-    }
-    
-    .categorias-nav {
-        flex-direction: column;
-    }
-    
-    .serie-card .info-overlay {
-        padding: 0.75rem;
-    }
-    
-    .serie-card .card-title {
-        font-size: 0.95rem;
-    }
-}
-
-@media (max-width: 576px) {
-    #series-container {
-        column-count: 1;
-    }
-}
+console.log('✅ UIManager cargado');
