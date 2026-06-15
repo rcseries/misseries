@@ -13,15 +13,23 @@ class SeriesManager {
             
             snapshot.forEach(doc => {
                 const data = doc.data();
-                // Convertir fechas de Firestore a objetos Date
-                if (data.fecha_estreno && data.fecha_estreno.toDate) {
-                    data.fecha_estreno = data.fecha_estreno.toDate().toISOString();
-                }
+                
+                // Normalizar capitulos_checklist
                 if (data.capitulos_checklist) {
-                    data.capitulos_checklist = data.capitulos_checklist.map(cap => ({
-                        ...cap,
-                        fecha: cap.fecha && cap.fecha.toDate ? cap.fecha.toDate().toISOString() : cap.fecha
-                    }));
+                    data.capitulos_checklist = ChecklistManager.normalizarCapitulos(data.capitulos_checklist);
+                }
+                
+                // Asegurar que fecha_estreno sea string ISO correcto
+                if (data.fecha_estreno) {
+                    if (data.fecha_estreno.toDate && typeof data.fecha_estreno.toDate === 'function') {
+                        const fechaDate = data.fecha_estreno.toDate();
+                        data.fecha_estreno = new Date(
+                            fechaDate.getFullYear(), 
+                            fechaDate.getMonth(), 
+                            fechaDate.getDate(), 
+                            12, 0, 0
+                        ).toISOString();
+                    }
                 }
                 
                 series.push({
@@ -30,10 +38,51 @@ class SeriesManager {
                 });
             });
             
+            // Verificar automatizaciones
+            await this.verificarAutomatizaciones(series);
+            
             return series;
         } catch (error) {
             console.error('Error al obtener series:', error);
             return [];
+        }
+    }
+
+    // Verificar y ejecutar automatizaciones
+    static async verificarAutomatizaciones(series) {
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        
+        for (const serie of series) {
+            // 1. Mover de pendiente_estreno a en_emision si llegó la fecha
+            if (AUTOMATIZACION.estrenoAEmision && 
+                serie.categoria === 'pendiente_estreno' && 
+                serie.fecha_estreno) {
+                
+                try {
+                    const fechaEstreno = new Date(serie.fecha_estreno);
+                    fechaEstreno.setHours(0, 0, 0, 0);
+                    
+                    if (fechaEstreno <= hoy) {
+                        await this.moverCategoria(serie.id, 'en_emision');
+                        console.log(`🤖 ${serie.titulo} movida a En Emisión (automático)`);
+                    }
+                } catch (e) {
+                    console.error('Error en automatización:', e);
+                }
+            }
+            
+            // 2. Mover de en_emision a vistas si todos los capítulos están vistos
+            if (AUTOMATIZACION.emisionAVistas && 
+                serie.categoria === 'en_emision' && 
+                serie.capitulos_checklist && 
+                serie.capitulos_checklist.length > 0) {
+                
+                if (ChecklistManager.todosVistos(serie.capitulos_checklist)) {
+                    await this.moverCategoria(serie.id, 'vistas');
+                    console.log(`🤖 ${serie.titulo} movida a Vistas (automático)`);
+                }
+            }
         }
     }
 
@@ -48,13 +97,19 @@ class SeriesManager {
 
             // Convertir fecha_estreno a formato correcto
             if (nuevaSerie.fecha_estreno) {
-                nuevaSerie.fecha_estreno = new Date(nuevaSerie.fecha_estreno + 'T00:00:00').toISOString();
+                const partes = nuevaSerie.fecha_estreno.split('T')[0].split('-');
+                nuevaSerie.fecha_estreno = new Date(
+                    parseInt(partes[0]), 
+                    parseInt(partes[1]) - 1, 
+                    parseInt(partes[2]), 
+                    12, 0, 0
+                ).toISOString();
             }
 
             // Si es "En Emisión", generar checklist automático
             if (datos.categoria === 'en_emision' && datos.fecha_estreno && datos.dias_emision && datos.total_capitulos) {
                 nuevaSerie.capitulos_checklist = ChecklistManager.generarFechasCapitulos(
-                    datos.fecha_estreno,
+                    nuevaSerie.fecha_estreno,
                     datos.dias_emision,
                     parseInt(datos.total_capitulos)
                 );
@@ -73,12 +128,16 @@ class SeriesManager {
         try {
             datos.ultima_actualizacion = new Date().toISOString();
             
-            // Convertir fecha_estreno a formato correcto
             if (datos.fecha_estreno) {
-                datos.fecha_estreno = new Date(datos.fecha_estreno + 'T00:00:00').toISOString();
+                const partes = datos.fecha_estreno.split('T')[0].split('-');
+                datos.fecha_estreno = new Date(
+                    parseInt(partes[0]), 
+                    parseInt(partes[1]) - 1, 
+                    parseInt(partes[2]), 
+                    12, 0, 0
+                ).toISOString();
             }
             
-            // Si cambió a "En Emisión", regenerar checklist
             if (datos.categoria === 'en_emision' && datos.fecha_estreno && datos.dias_emision && datos.total_capitulos) {
                 datos.capitulos_checklist = ChecklistManager.generarFechasCapitulos(
                     datos.fecha_estreno,
@@ -114,7 +173,6 @@ class SeriesManager {
                 ultima_actualizacion: new Date().toISOString()
             };
             
-            // Si se mueve a "Vistas", agregar fecha de finalización
             if (nuevaCategoria === 'vistas') {
                 datos.fecha_terminada = new Date().toISOString();
             }
@@ -133,11 +191,11 @@ class SeriesManager {
             const fechaA = a.fecha_estreno ? new Date(a.fecha_estreno) : null;
             const fechaB = b.fecha_estreno ? new Date(b.fecha_estreno) : null;
             
-            if (fechaA && fechaB) {
+            if (fechaA && fechaB && !isNaN(fechaA) && !isNaN(fechaB)) {
                 return fechaA - fechaB;
-            } else if (fechaA) {
+            } else if (fechaA && !isNaN(fechaA)) {
                 return -1;
-            } else if (fechaB) {
+            } else if (fechaB && !isNaN(fechaB)) {
                 return 1;
             } else {
                 return a.titulo.localeCompare(b.titulo);
@@ -145,3 +203,5 @@ class SeriesManager {
         });
     }
 }
+
+console.log('✅ SeriesManager cargado');
