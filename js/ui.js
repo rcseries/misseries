@@ -1,18 +1,111 @@
 class UIManager {
-    static async renderizarSeries(categoria) {
-        const container = document.getElementById('series-container');
-        container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 3rem;"><div class="spinner-border text-primary" role="status"></div></div>';
-        
-        // Obtener series filtradas por categoría
-        let series = await SeriesManager.obtenerSeries(categoria);
-        
-        // Filtrar nuevamente para asegurar que solo se muestren las de la categoría correcta
-        series = series.filter(s => s.categoria === categoria);
-        
-        if (categoria === 'pendiente_estreno') {
-            series = SeriesManager.ordenarPendientesEstreno(series);
+    // Variable para evitar renderizados múltiples
+    static renderizando = false;
+    static ultimaCategoria = '';
+    static seriesCache = {};
+
+    // Renderizar series en el contenedor
+    static async renderizarSeries(categoria, forzar = false) {
+        // Evitar renderizados múltiples simultáneos
+        if (this.renderizando && !forzar) {
+            console.log('⏳ Renderizado en progreso, esperando...');
+            return;
         }
         
+        // Si es la misma categoría y ya tenemos cache, usar cache
+        if (!forzar && categoria === this.ultimaCategoria && this.seriesCache[categoria]) {
+            console.log('📦 Usando cache para:', categoria);
+            this.mostrarSeriesEnContainer(this.seriesCache[categoria], categoria);
+            return;
+        }
+        
+        this.renderizando = true;
+        const container = document.getElementById('series-container');
+        
+        // Limpiar completamente el contenedor
+        container.innerHTML = '';
+        
+        // Mostrar loader
+        const loader = document.createElement('div');
+        loader.style.gridColumn = '1 / -1';
+        loader.style.textAlign = 'center';
+        loader.style.padding = '3rem';
+        loader.innerHTML = '<div class="spinner-border text-primary" role="status"></div>';
+        container.appendChild(loader);
+        
+        try {
+            let series = await SeriesManager.obtenerSeries(categoria);
+            
+            // Filtrar estrictamente por categoría
+            series = series.filter(s => s.categoria === categoria);
+            
+            // Eliminar duplicados por ID
+            const seriesUnicas = [];
+            const idsVistos = new Set();
+            for (const serie of series) {
+                if (!idsVistos.has(serie.id)) {
+                    idsVistos.add(serie.id);
+                    seriesUnicas.push(serie);
+                }
+            }
+            series = seriesUnicas;
+            
+            if (categoria === 'pendiente_estreno') {
+                series = SeriesManager.ordenarPendientesEstreno(series);
+            }
+            
+            // Guardar en cache
+            this.seriesCache[categoria] = series;
+            this.ultimaCategoria = categoria;
+            
+            // Limpiar y mostrar
+            container.innerHTML = '';
+            
+            if (series.length === 0) {
+                container.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 3rem 0;">
+                        <i class="fas fa-tv fa-4x mb-3" style="color: var(--text-secondary)"></i>
+                        <h4 style="color: var(--text-secondary)">No hay series en esta categoría</h4>
+                        <button class="btn btn-primary mt-3" onclick="abrirModalAgregar()">
+                            <i class="fas fa-plus me-1"></i> Agregar Serie
+                        </button>
+                    </div>
+                `;
+            } else {
+                // Crear todas las tarjetas
+                const fragment = document.createDocumentFragment();
+                
+                for (const serie of series) {
+                    const tarjeta = await this.crearTarjetaSerie(serie);
+                    fragment.appendChild(tarjeta);
+                }
+                
+                container.appendChild(fragment);
+                
+                // Aplicar Masonry después de que todas las imágenes carguen
+                setTimeout(() => {
+                    this.aplicarMasonry();
+                }, 500);
+            }
+        } catch (error) {
+            console.error('Error al renderizar:', error);
+            container.innerHTML = `
+                <div style="grid-column: 1 / -1; text-align: center; padding: 3rem 0;">
+                    <i class="fas fa-exclamation-triangle fa-4x mb-3" style="color: var(--accent)"></i>
+                    <h4 style="color: var(--text-secondary)">Error al cargar series</h4>
+                    <button class="btn btn-primary mt-3" onclick="UIManager.renderizarSeries(categoriaActual, true)">
+                        Reintentar
+                    </button>
+                </div>
+            `;
+        } finally {
+            this.renderizando = false;
+        }
+    }
+
+    // Mostrar series ya cargadas en el contenedor
+    static mostrarSeriesEnContainer(series, categoria) {
+        const container = document.getElementById('series-container');
         container.innerHTML = '';
         
         if (series.length === 0) {
@@ -20,23 +113,61 @@ class UIManager {
                 <div style="grid-column: 1 / -1; text-align: center; padding: 3rem 0;">
                     <i class="fas fa-tv fa-4x mb-3" style="color: var(--text-secondary)"></i>
                     <h4 style="color: var(--text-secondary)">No hay series en esta categoría</h4>
-                    <button class="btn btn-primary mt-3" onclick="abrirModalAgregar()">
-                        <i class="fas fa-plus me-1"></i> Agregar Serie
-                    </button>
                 </div>
             `;
             return;
         }
         
-        for (const serie of series) {
-            const tarjeta = await this.crearTarjetaSerie(serie);
-            container.appendChild(tarjeta);
-        }
+        const fragment = document.createDocumentFragment();
+        series.forEach(serie => {
+            const div = document.createElement('div');
+            div.innerHTML = serie.html;
+            fragment.appendChild(div.firstElementChild);
+        });
+        container.appendChild(fragment);
+        
+        setTimeout(() => {
+            this.aplicarMasonry();
+        }, 300);
     }
 
+    // Aplicar layout Masonry
+    static aplicarMasonry() {
+        const container = document.getElementById('series-container');
+        if (!container) return;
+        
+        const cards = container.querySelectorAll('.serie-card');
+        if (cards.length === 0) return;
+        
+        // Obtener columnas actuales
+        const columns = getComputedStyle(container).gridTemplateColumns.split(' ').length;
+        const gap = 24; // 1.5rem gap
+        
+        // Array para tracking de altura por columna
+        const columnHeights = new Array(columns).fill(0);
+        
+        cards.forEach(card => {
+            // Encontrar la columna más corta
+            const shortestColumn = columnHeights.indexOf(Math.min(...columnHeights));
+            
+            // Aplicar posición
+            card.style.gridRowStart = 'auto';
+            card.style.gridColumnStart = shortestColumn + 1;
+            card.style.marginTop = '0';
+            
+            // Actualizar altura de la columna
+            columnHeights[shortestColumn] += card.offsetHeight + gap;
+        });
+        
+        // Ajustar altura del contenedor
+        container.style.gridAutoRows = '1px';
+    }
+
+    // Crear tarjeta de serie
     static crearTarjetaSerie(serie) {
         return new Promise((resolve) => {
-            const col = document.createElement('div');
+            const div = document.createElement('div');
+            div.style.gridRowEnd = 'span 1';
             
             const portadaData = ImageManager.obtenerPortada(serie.portada, serie.titulo);
             const portada = portadaData.url;
@@ -101,7 +232,7 @@ class UIManager {
                         <div class="text-warning mb-1">
                             ${this.generarEstrellas(serie.calificacion || 0)}
                         </div>
-                        ${!serie.calificacion ? '<small style="opacity: 0.7;">Sin calificar</small>' : ''}
+                        ${!serie.calificacion ? '<small style="opacity: 0.7;">⭐ Sin calificar</small>' : ''}
                     `;
                     break;
                     
@@ -125,29 +256,32 @@ class UIManager {
             img.crossOrigin = 'anonymous';
             img.src = portada;
             
+            const generarHTML = (r = 102, g = 126, b = 234, textoContraste = '#ffffff') => {
+                div.innerHTML = this.generarHTMLTarjeta(serie, portada, fechaEstreno, infoExtra, r, g, b, textoContraste);
+                resolve(div);
+            };
+            
             img.onload = async () => {
-                const colorPredominante = await ImageManager.obtenerColorPredominante(img);
-                const { r, g, b } = colorPredominante;
-                const textoContraste = ImageManager.obtenerContraste(r, g, b);
-                
-                col.innerHTML = this.generarHTMLTarjeta(serie, portada, fechaEstreno, infoExtra, r, g, b, textoContraste);
-                resolve(col);
-            };
-            
-            img.onerror = () => {
-                col.innerHTML = this.generarHTMLTarjeta(serie, portada, fechaEstreno, infoExtra, 102, 126, 234, '#ffffff');
-                resolve(col);
-            };
-            
-            setTimeout(() => {
-                if (!col.innerHTML) {
-                    col.innerHTML = this.generarHTMLTarjeta(serie, portada, fechaEstreno, infoExtra, 102, 126, 234, '#ffffff');
-                    resolve(col);
+                try {
+                    const colorPredominante = await ImageManager.obtenerColorPredominante(img);
+                    const { r, g, b } = colorPredominante;
+                    const textoContraste = ImageManager.obtenerContraste(r, g, b);
+                    generarHTML(r, g, b, textoContraste);
+                } catch (e) {
+                    generarHTML();
                 }
+            };
+            
+            img.onerror = () => generarHTML();
+            
+            // Timeout de seguridad
+            setTimeout(() => {
+                if (!div.innerHTML) generarHTML();
             }, 3000);
         });
     }
 
+    // Generar HTML de la tarjeta
     static generarHTMLTarjeta(serie, portada, fechaEstreno, infoExtra, r, g, b, textoContraste) {
         const bgColor = `rgb(${r}, ${g}, ${b})`;
         
@@ -192,6 +326,7 @@ class UIManager {
         `;
     }
 
+    // Generar estrellas HTML
     static generarEstrellas(calificacion) {
         if (!calificacion || calificacion === 0) {
             return '<small style="opacity: 0.5;">⭐ Sin calificar</small>';
@@ -210,6 +345,7 @@ class UIManager {
         return estrellas;
     }
 
+    // Formatear categoría
     static formatearCategoria(categoria) {
         const categorias = {
             'pendiente_estreno': 'Próximo estreno',
@@ -221,6 +357,7 @@ class UIManager {
         return categorias[categoria] || categoria;
     }
 
+    // Mostrar checklist
     static async mostrarChecklist(serieId) {
         try {
             const doc = await seriesRef.doc(serieId).get();
@@ -268,28 +405,23 @@ class UIManager {
         }
     }
 
-        // Toggle capítulo en checklist
+    // Toggle capítulo
     static async toggleChecklist(serieId, numeroCapitulo, visto) {
         const resultado = await ChecklistManager.toggleCapitulo(serieId, numeroCapitulo, visto);
         
         if (resultado === 'completado') {
-            // Se mostrará el modal de calificación automáticamente
-            // Cerrar el modal de checklist
             const modalChecklist = document.getElementById('modalChecklist');
             if (modalChecklist) {
-                const modal = bootstrap.Modal.getInstance(modalChecklist);
-                if (modal) {
-                    modal.hide();
-                }
+                bootstrap.Modal.getInstance(modalChecklist)?.hide();
             }
         } else if (resultado) {
-            // Recargar el checklist normalmente
             setTimeout(async () => {
                 await this.mostrarChecklist(serieId);
             }, 300);
         }
     }
 
+    // Calcular progreso
     static calcularProgreso(serie) {
         const capitulos = serie.capitulos_checklist || [];
         if (capitulos.length === 0) return 0;
