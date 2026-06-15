@@ -1,37 +1,37 @@
-let categoriaActual = 'pendiente_estreno';
+// ============================================================
+// APP.JS - Lógica principal (compartido entre todas las vistas)
+// La variable CATEGORIA_ACTUAL se define en cada página HTML
+// ============================================================
+
 let modalSerie;
 let modalChecklist;
 
-document.addEventListener('DOMContentLoaded', () => {
-    modalSerie = new bootstrap.Modal(document.getElementById('modalSerie'));
+document.addEventListener('DOMContentLoaded', async () => {
+    modalSerie    = new bootstrap.Modal(document.getElementById('modalSerie'));
     modalChecklist = new bootstrap.Modal(document.getElementById('modalChecklist'));
-    
+
+    // Cerrar modal checklist → re-renderizar
     document.getElementById('modalChecklist').addEventListener('hidden.bs.modal', () => {
         document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
         document.body.classList.remove('modal-open');
         document.body.style.overflow = '';
         document.body.style.paddingRight = '';
-        UIManager.renderizarSeries(categoriaActual);
+        UIManager.renderizarSeries(CATEGORIA_ACTUAL);
     });
-    
+
+    // Cerrar modal serie → re-renderizar
     document.getElementById('modalSerie').addEventListener('hidden.bs.modal', () => {
-        UIManager.renderizarSeries(categoriaActual);
+        UIManager.renderizarSeries(CATEGORIA_ACTUAL);
     });
-    
+
     inicializarEventos();
-    UIManager.renderizarSeries(categoriaActual);
+    UIManager.renderizarSeries(CATEGORIA_ACTUAL);
+
+    // Inicializar notificaciones
+    await NotificationManager.init();
 });
 
 function inicializarEventos() {
-    document.querySelectorAll('.categorias-nav .nav-link').forEach(button => {
-        button.addEventListener('click', (e) => {
-            document.querySelectorAll('.categorias-nav .nav-link').forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            categoriaActual = e.target.dataset.categoria;
-            UIManager.renderizarSeries(categoriaActual);
-        });
-    });
-
     document.getElementById('formSerie').addEventListener('submit', async (e) => {
         e.preventDefault();
         await guardarSerie();
@@ -46,8 +46,8 @@ function abrirModalAgregar() {
     document.getElementById('modalTitulo').textContent = 'Nueva Serie';
     document.getElementById('formSerie').reset();
     document.getElementById('serieId').value = '';
-    document.getElementById('categoria').value = categoriaActual;
-    actualizarCamposExtras(categoriaActual);
+    document.getElementById('categoria').value = CATEGORIA_ACTUAL;
+    actualizarCamposExtras(CATEGORIA_ACTUAL);
     modalSerie.show();
 }
 
@@ -72,12 +72,12 @@ async function editarSerie(id) {
 
 function actualizarCamposExtras(categoria, datos = {}) {
     const camposExtras = document.getElementById('camposExtras');
-    switch(categoria) {
+    switch (categoria) {
         case 'pendiente_estreno':
             camposExtras.innerHTML = `
                 <div class="mb-3">
                     <label class="form-label">Fecha de Estreno (Opcional)</label>
-                    <input type="date" class="form-control bg-dark text-white" id="fechaEstreno" 
+                    <input type="date" class="form-control bg-dark text-white" id="fechaEstreno"
                            value="${datos.fecha_estreno ? datos.fecha_estreno.split('T')[0] : ''}">
                 </div>`;
             break;
@@ -90,14 +90,14 @@ function actualizarCamposExtras(categoria, datos = {}) {
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Total de Capítulos *</label>
-                    <input type="number" class="form-control bg-dark text-white" id="totalCapitulos" 
+                    <input type="number" class="form-control bg-dark text-white" id="totalCapitulos"
                            min="1" required value="${datos.total_capitulos || ''}">
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Días de Emisión *</label>
                     <div class="dias-emision" id="diasEmision">
-                        ${['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'].map(dia => `
-                            <span class="dia-badge ${datos.dias_emision && datos.dias_emision.includes(dia) ? 'seleccionado' : ''}" 
+                        ${['lunes','martes','miercoles','jueves','viernes','sabado','domingo'].map(dia => `
+                            <span class="dia-badge ${datos.dias_emision && datos.dias_emision.includes(dia) ? 'seleccionado' : ''}"
                                   data-dia="${dia}">${dia.charAt(0).toUpperCase() + dia.slice(1)}</span>
                         `).join('')}
                     </div>
@@ -112,7 +112,7 @@ function actualizarCamposExtras(categoria, datos = {}) {
                     <label class="form-label">Calificación</label>
                     <div class="rating">
                         ${[5, 4.5, 4, 3.5, 3, 2.5, 2, 1.5, 1, 0.5].map(valor => `
-                            <input type="radio" name="calificacion" value="${valor}" 
+                            <input type="radio" name="calificacion" value="${valor}"
                                    id="star${valor}" ${datos.calificacion === valor ? 'checked' : ''}>
                             <label for="star${valor}">★</label>
                         `).join('')}
@@ -125,24 +125,24 @@ function actualizarCamposExtras(categoria, datos = {}) {
 }
 
 async function guardarSerie() {
-    const id = document.getElementById('serieId').value;
-    const titulo = document.getElementById('titulo').value;
+    const id        = document.getElementById('serieId').value;
+    const titulo    = document.getElementById('titulo').value;
     const categoria = document.getElementById('categoria').value;
-    const portada = document.getElementById('portada').value;
-    
+    const portada   = document.getElementById('portada').value;
+
     if (!titulo) { alert('El título es obligatorio'); return; }
-    
+
     const datos = { titulo, categoria, portada };
-    
-    switch(categoria) {
+
+    switch (categoria) {
         case 'pendiente_estreno':
             const fechaPE = document.getElementById('fechaEstreno')?.value;
             if (fechaPE) datos.fecha_estreno = fechaPE;
             break;
         case 'en_emision':
-            datos.fecha_estreno = document.getElementById('fechaEstreno').value;
-            datos.total_capitulos = parseInt(document.getElementById('totalCapitulos').value);
-            datos.dias_emision = Array.from(document.querySelectorAll('.dia-badge.seleccionado')).map(b => b.dataset.dia);
+            datos.fecha_estreno    = document.getElementById('fechaEstreno').value;
+            datos.total_capitulos  = parseInt(document.getElementById('totalCapitulos').value);
+            datos.dias_emision     = Array.from(document.querySelectorAll('.dia-badge.seleccionado')).map(b => b.dataset.dia);
             if (!datos.fecha_estreno || !datos.total_capitulos || datos.dias_emision.length === 0) {
                 alert('Todos los campos son obligatorios'); return;
             }
@@ -152,17 +152,28 @@ async function guardarSerie() {
             if (cal) datos.calificacion = parseFloat(cal.value);
             break;
     }
-    
+
     try {
-        const resultado = id ? await SeriesManager.actualizarSerie(id, datos) : await SeriesManager.agregarSerie(datos);
-        if (resultado) { modalSerie.hide(); UIManager.renderizarSeries(categoriaActual); }
+        let serieId = id;
+        if (id) {
+            await SeriesManager.actualizarSerie(id, datos);
+        } else {
+            const resultado = await SeriesManager.agregarSerie(datos);
+            serieId = resultado?.id;
+        }
+
+        // Reprogramar notificaciones para esta serie
+        if (serieId) await NotificationManager.reprogramarSerie(serieId);
+
+        modalSerie.hide();
+        UIManager.renderizarSeries(CATEGORIA_ACTUAL);
     } catch (error) {
         console.error('Error:', error);
         alert('Error al guardar');
     }
 }
 
-function verChecklist(id) { UIManager.mostrarChecklist(id); }
+function verChecklist(id)   { UIManager.mostrarChecklist(id); }
 
 async function calificarSerie(id) {
     await editarSerie(id);
@@ -174,11 +185,11 @@ async function eliminarSerie(id) {
     if (confirm('¿Eliminar esta serie?')) {
         try {
             await SeriesManager.eliminarSerie(id);
-            UIManager.renderizarSeries(categoriaActual);
+            UIManager.renderizarSeries(CATEGORIA_ACTUAL);
         } catch (error) { alert('Error al eliminar'); }
     }
 }
 
 function verDetalleSerie(id) {}
 
-console.log('✅ App cargada');
+console.log('✅ App cargada — categoría:', typeof CATEGORIA_ACTUAL !== 'undefined' ? CATEGORIA_ACTUAL : 'no definida');
