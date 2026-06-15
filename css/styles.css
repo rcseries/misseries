@@ -42,14 +42,25 @@ body {
     color: white !important;
 }
 
-/* Tarjetas de series - NUEVO DISEÑO ADAPTATIVO */
+/* Contenedor de series - Masonry Layout */
+#series-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1.5rem;
+    grid-auto-rows: auto;
+}
+
+/* Tarjetas de series - DISEÑO ADAPTATIVO A CUALQUIER TAMAÑO */
 .serie-card {
     border-radius: 15px;
     overflow: hidden;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
-    height: 100%;
     cursor: pointer;
     position: relative;
+    display: flex;
+    flex-direction: column;
+    break-inside: avoid;
+    height: fit-content;
 }
 
 .serie-card:hover {
@@ -57,20 +68,30 @@ body {
     box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
 }
 
+/* Contenedor de imagen adaptable */
+.serie-card .imagen-container {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+}
+
+.serie-card .imagen-container img {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: contain;
+}
+
+/* Info overlay - se adapta al contenido */
+.serie-card .info-overlay {
+    padding: 1rem;
+    background: inherit;
+}
+
 .serie-card .card-title {
     font-size: 1.1rem;
     margin-bottom: 0.5rem;
     font-weight: bold;
-}
-
-/* Overlay de información */
-.serie-card .info-overlay {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 1.5rem;
-    transition: all 0.3s ease;
 }
 
 /* Próximo capítulo */
@@ -80,6 +101,7 @@ body {
     padding: 8px 12px;
     transition: all 0.3s ease;
     border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 8px;
 }
 
 .proximo-capitulo:hover {
@@ -184,24 +206,45 @@ body {
     animation: fadeIn 0.5s ease;
 }
 
+/* Modal - asegurar que no se quede pantalla negra */
+.modal-backdrop {
+    z-index: 1040 !important;
+}
+
+.modal {
+    z-index: 1050 !important;
+}
+
 /* Responsive */
+@media (max-width: 1200px) {
+    #series-container {
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    }
+}
+
 @media (max-width: 768px) {
     .categorias-nav {
         flex-direction: column;
     }
     
+    #series-container {
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 1rem;
+    }
+    
     .serie-card .info-overlay {
-        padding: 1rem;
+        padding: 0.75rem;
     }
     
     .serie-card .card-title {
-        font-size: 1rem;
+        font-size: 0.95rem;
     }
 }
 
 @media (max-width: 576px) {
-    .serie-card {
-        margin: 0 10px;
+    #series-container {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 0.75rem;
     }
 }
 
@@ -232,15 +275,4 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: #c73e54;
-}
-
-/* Estilos para texto con contraste */
-.texto-contraste-claro {
-    color: #ffffff;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-}
-
-.texto-contraste-oscuro {
-    color: #000000;
-    text-shadow: 0 1px 3px rgba(255, 255, 255, 0.3);
 }
