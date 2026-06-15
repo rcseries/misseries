@@ -16,14 +16,17 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.classList.remove('modal-open');
         document.body.style.overflow = '';
         document.body.style.paddingRight = '';
-        
-        // Recargar la vista actual
         UIManager.renderizarSeries(categoriaActual);
     });
     
-    // También limpiar al cerrar modal de serie
+    // Limpiar al cerrar modal de serie
     document.getElementById('modalSerie').addEventListener('hidden.bs.modal', () => {
         UIManager.renderizarSeries(categoriaActual);
+    });
+    
+    // Listener para restaurar columnas al cambiar tamaño de pantalla
+    window.addEventListener('resize', () => {
+        UIManager.restaurarColumnas();
     });
     
     inicializarEventos();
@@ -89,7 +92,6 @@ function actualizarCamposExtras(categoria, datos = {}) {
                     <label class="form-label">Fecha de Estreno (Opcional)</label>
                     <input type="date" class="form-control bg-dark text-white" id="fechaEstreno" 
                            value="${datos.fecha_estreno ? datos.fecha_estreno.split('T')[0] : ''}">
-                    <small class="text-muted">Cuando llegue la fecha, se moverá automáticamente a "En Emisión"</small>
                 </div>
             `;
             break;
@@ -204,7 +206,6 @@ function verChecklist(id) {
 }
 
 async function calificarSerie(id) {
-    // Abrir modal de edición para calificar
     await editarSerie(id);
     document.getElementById('categoria').value = 'vistas';
     actualizarCamposExtras('vistas');
