@@ -1,16 +1,16 @@
 class ChecklistManager {
-    // Generar fechas de capítulos basado en fecha de estreno y días de emisión
+    // Generar fechas de capítulos
     static generarFechasCapitulos(fechaEstreno, diasEmision, totalCapitulos) {
         const fechas = [];
         
-        // Crear fecha base sin problemas de zona horaria
-        const partes = fechaEstreno.split('T')[0].split('-');
-        const fechaBase = new Date(
-            parseInt(partes[0]), 
-            parseInt(partes[1]) - 1, 
-            parseInt(partes[2]), 
-            12, 0, 0
-        );
+        // Usar la fecha exacta sin conversión de zona horaria
+        const partes = fechaEstreno.split('-');
+        const año = parseInt(partes[0]);
+        const mes = parseInt(partes[1]) - 1; // Los meses en JS van de 0-11
+        const dia = parseInt(partes[2]);
+        
+        // Crear fecha base (mediodía para evitar problemas)
+        const fechaBase = new Date(año, mes, dia, 12, 0, 0);
         
         let capitulosGenerados = 0;
         let diasBusqueda = 0;
@@ -24,16 +24,14 @@ class ChecklistManager {
             
             if (diasEmision.includes(diaSemana)) {
                 capitulosGenerados++;
-                // Guardar fecha en formato ISO sin hora para evitar desfases
-                const fechaCapitulo = new Date(
-                    fechaActual.getFullYear(),
-                    fechaActual.getMonth(),
-                    fechaActual.getDate(),
-                    12, 0, 0
-                );
+                // Guardar en formato YYYY-MM-DD
+                const añoCap = fechaActual.getFullYear();
+                const mesCap = String(fechaActual.getMonth() + 1).padStart(2, '0');
+                const diaCap = String(fechaActual.getDate()).padStart(2, '0');
+                
                 fechas.push({
                     numero: capitulosGenerados,
-                    fecha: fechaCapitulo.toISOString(),
+                    fecha: `${añoCap}-${mesCap}-${diaCap}`,
                     visto: false
                 });
             }
@@ -55,27 +53,32 @@ class ChecklistManager {
         if (!fecha) return 'Fecha no disponible';
         
         try {
-            // Si la fecha es un timestamp de Firestore
+            let fechaStr = fecha;
+            
+            // Si es Timestamp de Firestore
             if (fecha.toDate && typeof fecha.toDate === 'function') {
-                fecha = fecha.toDate().toISOString();
+                const d = fecha.toDate();
+                fechaStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             }
             
-            const partes = fecha.split('T')[0].split('-');
-            if (partes.length !== 3) return 'Fecha no disponible';
+            // Si ya es string YYYY-MM-DD
+            const partes = fechaStr.split('T')[0].split('-');
+            if (partes.length === 3) {
+                const año = parseInt(partes[0]);
+                const mes = parseInt(partes[1]);
+                const dia = parseInt(partes[2]);
+                
+                // Crear fecha local (mes-1 porque JS usa 0-11)
+                const fechaObj = new Date(año, mes - 1, dia, 12, 0, 0);
+                
+                return fechaObj.toLocaleDateString('es-ES', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                });
+            }
             
-            const año = parseInt(partes[0]);
-            const mes = parseInt(partes[1]) - 1;
-            const dia = parseInt(partes[2]);
-            
-            const fechaObj = new Date(año, mes, dia, 12, 0, 0);
-            
-            if (isNaN(fechaObj.getTime())) return 'Fecha no disponible';
-            
-            return fechaObj.toLocaleDateString('es-ES', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric'
-            });
+            return 'Fecha no disponible';
         } catch (error) {
             console.error('Error formateando fecha:', fecha, error);
             return 'Fecha no disponible';
@@ -90,7 +93,6 @@ class ChecklistManager {
                 const data = doc.data();
                 let capitulos = data.capitulos_checklist || [];
                 
-                // Normalizar capitulos si vienen como string
                 if (typeof capitulos === 'string') {
                     try {
                         capitulos = JSON.parse(capitulos);
@@ -109,7 +111,6 @@ class ChecklistManager {
                         ultima_actualizacion: new Date().toISOString()
                     });
                     
-                    // Verificar si todos los capítulos están vistos para mover a Vistas
                     if (AUTOMATIZACION.emisionAVistas && this.todosVistos(capitulos)) {
                         await SeriesManager.moverCategoria(serieId, 'vistas');
                     }
@@ -128,10 +129,9 @@ class ChecklistManager {
     static obtenerProximoCapitulo(capitulos) {
         if (!capitulos || capitulos.length === 0) return null;
         
-        // Normalizar
         const capsNormalizados = this.normalizarCapitulos(capitulos);
-        
         const noVistos = capsNormalizados.filter(c => !c.visto);
+        
         if (noVistos.length === 0) return null;
         
         const hoy = new Date();
@@ -142,13 +142,12 @@ class ChecklistManager {
         
         for (const cap of noVistos) {
             try {
-                const partes = cap.fecha.split('T')[0].split('-');
+                const partes = cap.fecha.split('-');
                 const fechaCap = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
-                fechaCap.setHours(0, 0, 0, 0);
+                fechaCap.setHours(12, 0, 0, 0);
                 
                 const diferencia = fechaCap - hoy;
                 
-                // Priorizar capítulos futuros o de hoy
                 if (diferencia >= 0 && diferencia < menorDiferencia) {
                     menorDiferencia = diferencia;
                     proximo = cap;
@@ -158,7 +157,6 @@ class ChecklistManager {
             }
         }
         
-        // Si no hay futuros, devolver el primer no visto
         if (!proximo) {
             proximo = noVistos[0];
         }
@@ -170,7 +168,7 @@ class ChecklistManager {
     static todosVistos(capitulos) {
         if (!capitulos || capitulos.length === 0) return false;
         const caps = this.normalizarCapitulos(capitulos);
-        return caps.every(c => c.visto);
+        return caps.length > 0 && caps.every(c => c.visto);
     }
 
     // Normalizar fechas en capitulos
@@ -184,11 +182,21 @@ class ChecklistManager {
             }
         }
         
-        return capitulos.map(cap => ({
-            numero: cap.numero,
-            fecha: cap.fecha || new Date().toISOString(),
-            visto: cap.visto || false
-        }));
+        return capitulos.map(cap => {
+            let fechaCap = cap.fecha || '';
+            
+            // Si es Timestamp de Firestore
+            if (fechaCap && fechaCap.toDate && typeof fechaCap.toDate === 'function') {
+                const d = fechaCap.toDate();
+                fechaCap = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            }
+            
+            return {
+                numero: cap.numero,
+                fecha: fechaCap,
+                visto: cap.visto || false
+            };
+        });
     }
 }
 
