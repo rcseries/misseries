@@ -217,12 +217,10 @@ async function guardarSerie() {
         case 'vistas':
             const cal = document.querySelector('input[name="calificacion"]:checked');
             if (cal) datos.calificacion = parseFloat(cal.value);
-            const checklistV = document.getElementById('checklistPersonalizado')?.value;
-            if (checklistV) datos.checklist_personalizado = checklistV;
+            datos.checklist_personalizado = obtenerChecklistPersonalizado();
             break;
         case 'a_medias':
-            const checklistM = document.getElementById('checklistPersonalizado')?.value;
-            if (checklistM) datos.checklist_personalizado = checklistM;
+            datos.checklist_personalizado = obtenerChecklistPersonalizado();
             break;
     }
 
@@ -263,5 +261,51 @@ async function eliminarSerie(id) {
 }
 
 function verDetalleSerie(id) {}
+
+// Toggle visibilidad del checklist personalizado
+function toggleChecklistPersonalizado() {
+    const container = document.getElementById('checklistPersonalizadoContainer');
+    const btn = document.getElementById('btnAgregarChecklist');
+    if (container.style.display === 'none') {
+        container.style.display = 'block';
+        btn.innerHTML = '<i class="fas fa-times me-1"></i> Quitar checklist';
+        btn.className = 'btn btn-sm btn-outline-danger';
+    } else {
+        container.style.display = 'none';
+        btn.innerHTML = '<i class="fas fa-list-check me-1"></i> Agregar checklist personalizado';
+        btn.className = 'btn btn-sm btn-outline-info';
+    }
+}
+
+// Agregar ítem al checklist
+function agregarItemChecklist() {
+    const container = document.getElementById('checklistItems');
+    const div = document.createElement('div');
+    div.className = 'input-group mb-2';
+    div.innerHTML = `
+        <input type="text" class="form-control bg-dark text-white checklist-item" placeholder="Nombre del ítem">
+        <span class="input-group-text bg-dark text-white" style="border-color: rgba(255,255,255,0.15);">
+            <input type="checkbox" class="form-check-input checklist-check">
+        </span>
+        <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.parentElement.remove()">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    container.appendChild(div);
+}
+
+// Obtener datos del checklist personalizado
+function obtenerChecklistPersonalizado() {
+    const items = document.querySelectorAll('#checklistItems .input-group');
+    const checklist = [];
+    items.forEach(item => {
+        const texto = item.querySelector('.checklist-item')?.value?.trim();
+        if (texto) {
+            const visto = item.querySelector('.checklist-check')?.checked || false;
+            checklist.push({ texto, visto });
+        }
+    });
+    return checklist.length > 0 ? JSON.stringify(checklist) : null;
+}
 
 console.log('✅ App cargada — categoría:', typeof CATEGORIA_ACTUAL !== 'undefined' ? CATEGORIA_ACTUAL : 'no definida');
