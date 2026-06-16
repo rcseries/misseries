@@ -20,7 +20,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     inicializarEventos();
     UIManager.renderizarSeries(CATEGORIA_ACTUAL);
 
-    // Inicializar Calendar
     await NotificationManager.init();
 });
 
@@ -98,7 +97,7 @@ function actualizarCamposExtras(categoria, datos = {}) {
                 badge.addEventListener('click', () => badge.classList.toggle('seleccionado'));
             });
             break;
-                case 'vistas':
+        case 'vistas':
             camposExtras.innerHTML = `
                 <div class="mb-3">
                     <label class="form-label">Calificación</label>
@@ -118,7 +117,7 @@ function actualizarCamposExtras(categoria, datos = {}) {
                         <label class="form-label">Ítems del checklist (uno por línea)</label>
                         <div id="checklistItems">
                             ${datos.checklist_personalizado ? 
-                                JSON.parse(datos.checklist_personalizado).map(item => `
+                                (() => { try { return JSON.parse(datos.checklist_personalizado); } catch(e) { return []; } })().map(item => `
                                     <div class="input-group mb-2">
                                         <input type="text" class="form-control bg-dark text-white checklist-item" value="${item.texto || ''}" placeholder="Nombre del ítem">
                                         <span class="input-group-text bg-dark text-white" style="border-color: rgba(255,255,255,0.15);">
@@ -157,7 +156,7 @@ function actualizarCamposExtras(categoria, datos = {}) {
                         <label class="form-label">Ítems del checklist (uno por línea)</label>
                         <div id="checklistItems">
                             ${datos.checklist_personalizado ? 
-                                JSON.parse(datos.checklist_personalizado).map(item => `
+                                (() => { try { return JSON.parse(datos.checklist_personalizado); } catch(e) { return []; } })().map(item => `
                                     <div class="input-group mb-2">
                                         <input type="text" class="form-control bg-dark text-white checklist-item" value="${item.texto || ''}" placeholder="Nombre del ítem">
                                         <span class="input-group-text bg-dark text-white" style="border-color: rgba(255,255,255,0.15);">
@@ -233,7 +232,7 @@ async function guardarSerie() {
             serieId = resultado?.id;
         }
 
-        if (serieId) await CalendarManager.reprogramarSerie(serieId);
+        if (serieId) await NotificationManager.reprogramarTodo();
 
         modalSerie.hide();
         UIManager.renderizarSeries(CATEGORIA_ACTUAL, true);
@@ -262,7 +261,6 @@ async function eliminarSerie(id) {
 
 function verDetalleSerie(id) {}
 
-// Toggle visibilidad del checklist personalizado
 function toggleChecklistPersonalizado() {
     const container = document.getElementById('checklistPersonalizadoContainer');
     const btn = document.getElementById('btnAgregarChecklist');
@@ -277,7 +275,6 @@ function toggleChecklistPersonalizado() {
     }
 }
 
-// Agregar ítem al checklist
 function agregarItemChecklist() {
     const container = document.getElementById('checklistItems');
     const div = document.createElement('div');
@@ -294,7 +291,6 @@ function agregarItemChecklist() {
     container.appendChild(div);
 }
 
-// Obtener datos del checklist personalizado
 function obtenerChecklistPersonalizado() {
     const items = document.querySelectorAll('#checklistItems .input-group');
     const checklist = [];
