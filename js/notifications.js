@@ -1,114 +1,114 @@
 // ============================================================
-// NOTIFICATIONS.JS - Sistema de notificaciones
+// NOTIFICATIONS.JS - Google Calendar Recordatorios
 // ============================================================
 
-const NotificationManager = {
-    swRegistration: null,
-    permisoConcedido: false,
+const CalendarManager = {
+    calendarId: GOOGLE_CALENDAR.email,
 
-    // ── Inicializar: registrar SW y pedir permiso ─────────────
-    async init() {
-        if (!('Notification' in window)) {
-            console.warn('Este navegador no soporta notificaciones');
-            return false;
-        }
-        if (!('serviceWorker' in navigator)) {
-            console.warn('Service Worker no disponible');
-            return false;
-        }
+    // Crear evento en Google Calendar
+    async crearEvento({ titulo, fecha, descripcion, serieId }) {
+        const fechaEvento = this.parsearFecha(fecha);
+        if (!fechaEvento) return;
 
-        // Registrar el Service Worker
+        // Fecha inicio: 7:00 AM
+        const inicio = new Date(fechaEvento);
+        inicio.setHours(7, 0, 0, 0);
+
+        // Fecha fin: 7:30 AM
+        const fin = new Date(inicio);
+        fin.setMinutes(30);
+
+        const evento = {
+            summary: titulo,
+            description: descripcion || '',
+            start: {
+                dateTime: inicio.toISOString(),
+                timeZone: 'America/El_Salvador'
+            },
+            end: {
+                dateTime: fin.toISOString(),
+                timeZone: 'America/El_Salvador'
+            },
+            reminders: {
+                useDefault: false,
+                overrides: [
+                    { method: 'popup', minutes: 0 }
+                ]
+            }
+        };
+
         try {
-            this.swRegistration = await navigator.serviceWorker.register('./sw.js');
-            console.log('✅ Service Worker registrado');
-        } catch (err) {
-            console.error('Error al registrar SW:', err);
-            return false;
-        }
+            const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(this.calendarId)}/events?key=${GOOGLE_CALENDAR.apiKey}`;
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(evento)
+            });
 
-        // Pedir permiso de notificación
-        if (Notification.permission === 'granted') {
-            this.permisoConcedido = true;
-        } else if (Notification.permission !== 'denied') {
-            const permiso = await Notification.requestPermission();
-            this.permisoConcedido = permiso === 'granted';
+            if (response.ok) {
+                const data = await response.json();
+                console.log('📅 Evento creado:', data.htmlLink);
+                return data;
+            } else {
+                const error = await response.json();
+                console.warn('⚠️ Error al crear evento:', error);
+                return null;
+            }
+        } catch (error) {
+            console.error('Error al crear evento en Calendar:', error);
+            return null;
         }
-
-        if (this.permisoConcedido) {
-            console.log('✅ Permiso de notificaciones concedido');
-            await this.programarTodasLasNotificaciones();
-        } else {
-            console.warn('⚠️ Permiso de notificaciones denegado');
-        }
-
-        return this.permisoConcedido;
     },
 
-    // ── Programar notificaciones para TODAS las series ────────
+    // Programar todos los recordatorios
     async programarTodasLasNotificaciones() {
-        if (!this.permisoConcedido) return;
-
         try {
             const snapshot = await seriesRef.get();
             const series = [];
             snapshot.forEach(doc => series.push({ id: doc.id, ...doc.data() }));
 
             for (const serie of series) {
-                await this.programarNotificacionesSerie(serie);
+                await this.programarRecordatoriosSerie(serie);
             }
 
-            console.log(`✅ Notificaciones programadas para ${series.length} series`);
+            console.log(`📅 Recordatorios programados para ${series.length} series`);
         } catch (err) {
-            console.error('Error al programar notificaciones:', err);
+            console.error('Error al programar recordatorios:', err);
         }
     },
 
-    // ── Programar notificaciones de una serie específica ──────
-    async programarNotificacionesSerie(serie) {
-        if (!this.permisoConcedido) return;
-
+    // Programar recordatorios de una serie
+    async programarRecordatoriosSerie(serie) {
         const ahora = new Date();
 
-        // ── Pendiente de estreno ──────────────────────────────
+        // Pendiente de estreno
         if (serie.categoria === 'pendiente_estreno' && serie.fecha_estreno) {
             const fechaEstreno = this.parsearFecha(serie.fecha_estreno);
-            if (!fechaEstreno) return;
-
-            // Notificación el día del estreno a las 09:00
-            const notifEstreno = new Date(fechaEstreno);
-            notifEstreno.setHours(9, 0, 0, 0);
-
-            if (notifEstreno > ahora) {
-                const delay = notifEstreno - ahora;
-                this.enviarAlSW({
-                    type: 'SCHEDULE_NOTIFICATION',
-                    title: `🎬 ¡Hoy estrena! ${serie.titulo}`,
-                    body: `El día esperado llegó. ¡${serie.titulo} se estrena hoy!`,
-                    tag: `estreno-${serie.id}`,
-                    delay,
-                    url: '/misseries/pendiente_estreno.html'
+            if (fechaEstreno && fechaEstreno > ahora) {
+                // Recordatorio el día del estreno
+                await this.crearEvento({
+                    titulo: `🎬 ¡Estrena hoy! ${serie.titulo}`,
+                    fecha: serie.fecha_estreno,
+                    descripcion: `${serie.titulo} se estrena hoy. ¡A disfrutar!`,
+                    serieId: serie.id
                 });
-            }
 
-            // Notificación 1 día antes a las 20:00
-            const notifAntes = new Date(fechaEstreno);
-            notifAntes.setDate(notifAntes.getDate() - 1);
-            notifAntes.setHours(20, 0, 0, 0);
-
-            if (notifAntes > ahora) {
-                const delay = notifAntes - ahora;
-                this.enviarAlSW({
-                    type: 'SCHEDULE_NOTIFICATION',
-                    title: `📅 Mañana estrena: ${serie.titulo}`,
-                    body: `¡Prepárate! ${serie.titulo} se estrena mañana.`,
-                    tag: `antes-estreno-${serie.id}`,
-                    delay,
-                    url: '/misseries/pendiente_estreno.html'
-                });
+                // Recordatorio 1 día antes
+                const unDiaAntes = new Date(fechaEstreno);
+                unDiaAntes.setDate(unDiaAntes.getDate() - 1);
+                if (unDiaAntes > ahora) {
+                    await this.crearEvento({
+                        titulo: `📅 Mañana estrena: ${serie.titulo}`,
+                        fecha: unDiaAntes.toISOString().split('T')[0],
+                        descripcion: `Prepárate, ${serie.titulo} se estrena mañana.`,
+                        serieId: serie.id
+                    });
+                }
             }
         }
 
-        // ── En Emisión: notificar capítulos próximos ──────────
+        // En Emisión - recordatorios por capítulo
         if (serie.categoria === 'en_emision' && serie.capitulos_checklist) {
             let capitulos = serie.capitulos_checklist;
             if (typeof capitulos === 'string') {
@@ -116,44 +116,38 @@ const NotificationManager = {
             }
 
             const noVistos = capitulos.filter(c => !c.visto);
+            const limiteDias = 60; // Solo programar próximos 60 días
 
             for (const cap of noVistos) {
                 const fechaCap = this.parsearFecha(cap.fecha);
-                if (!fechaCap) continue;
+                if (!fechaCap || fechaCap <= ahora) continue;
 
-                // Notificación a las 09:00 del día del capítulo
-                const notifCap = new Date(fechaCap);
-                notifCap.setHours(9, 0, 0, 0);
+                const diffDias = (fechaCap - ahora) / (1000 * 60 * 60 * 24);
+                if (diffDias > limiteDias) continue;
 
-                if (notifCap > ahora) {
-                    const delay = notifCap - ahora;
-                    // Limitar a los próximos 30 días para no saturar
-                    if (delay < 30 * 24 * 60 * 60 * 1000) {
-                        this.enviarAlSW({
-                            type: 'SCHEDULE_NOTIFICATION',
-                            title: `📺 Nuevo capítulo: ${serie.titulo}`,
-                            body: `El Capítulo ${cap.numero} de ${serie.titulo} está disponible hoy.`,
-                            tag: `cap-${serie.id}-${cap.numero}`,
-                            delay,
-                            url: '/misseries/en_emision.html'
-                        });
-                    }
-                }
+                await this.crearEvento({
+                    titulo: `📺 ${serie.titulo} - Capítulo ${cap.numero}`,
+                    fecha: cap.fecha,
+                    descripcion: `Nuevo capítulo de ${serie.titulo}: Capítulo ${cap.numero}`,
+                    serieId: serie.id
+                });
             }
         }
     },
 
-    // ── Enviar mensaje al Service Worker ─────────────────────
-    enviarAlSW(data) {
-        if (!this.swRegistration) return;
-        navigator.serviceWorker.ready.then(reg => {
-            if (reg.active) {
-                reg.active.postMessage(data);
+    // Reprogramar al agregar/editar
+    async reprogramarSerie(serieId) {
+        try {
+            const doc = await seriesRef.doc(serieId).get();
+            if (doc.exists) {
+                await this.programarRecordatoriosSerie({ id: doc.id, ...doc.data() });
             }
-        });
+        } catch (e) {
+            console.error('Error al reprogramar:', e);
+        }
     },
 
-    // ── Parsear fecha string YYYY-MM-DD de forma segura ──────
+    // Parsear fecha
     parsearFecha(fechaStr) {
         if (!fechaStr) return null;
         try {
@@ -165,30 +159,7 @@ const NotificationManager = {
         } catch (e) {
             return null;
         }
-    },
-
-    // ── Mostrar notificación local inmediata (para pruebas) ──
-    async mostrarLocal(titulo, cuerpo) {
-        if (!this.permisoConcedido || !this.swRegistration) return;
-        await this.swRegistration.showNotification(titulo, {
-            body: cuerpo,
-            icon: '/misseries/icon-192.png',
-            vibrate: [200, 100, 200]
-        });
-    },
-
-    // ── Reprogramar al agregar/editar una serie ───────────────
-    async reprogramarSerie(serieId) {
-        if (!this.permisoConcedido) return;
-        try {
-            const doc = await seriesRef.doc(serieId).get();
-            if (doc.exists) {
-                await this.programarNotificacionesSerie({ id: doc.id, ...doc.data() });
-            }
-        } catch (e) {
-            console.error('Error al reprogramar:', e);
-        }
     }
 };
 
-console.log('✅ NotificationManager cargado');
+console.log('📅 CalendarManager cargado');
