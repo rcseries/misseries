@@ -43,12 +43,18 @@ const IMAGE_SERVICES = {
 
 // Configuración de automatizaciones
 const AUTOMATIZACION = {
-    // Mover de pendiente_estreno a en_emision cuando llegue la fecha
     estrenoAEmision: true,
-    // Mover de en_emision a vistas cuando se completen todos los capítulos
     emisionAVistas: true
+};
+
+// Configuración de Google Calendar
+const GOOGLE_CALENDAR = {
+    apiKey: "AIzaSyDGipdLbS3OUcycgctqubO5rKbfEnntU08",
+    email: "raquelcuellarg20@gmail.com",
+    horaRecordatorio: "07:00" // 7:00 AM
 };
 
 console.log('✅ Firebase inicializado correctamente');
 console.log('🖼️ Sistema de portadas configurado');
 console.log('🤖 Sistema de automatización configurado');
+console.log('📅 Google Calendar configurado');
