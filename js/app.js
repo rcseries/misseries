@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     UIManager.renderizarSeries(CATEGORIA_ACTUAL);
 
     // Inicializar Calendar
-    await CalendarManager.programarTodasLasNotificaciones();
+    await NotificationManager.init();
 });
 
 function inicializarEventos() {
