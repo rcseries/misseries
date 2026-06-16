@@ -1,16 +1,14 @@
 // ============================================================
-// APP.JS - Lógica principal (compartido entre todas las vistas)
-// La variable CATEGORIA_ACTUAL se define en cada página HTML
+// APP.JS - Lógica principal
 // ============================================================
 
 let modalSerie;
 let modalChecklist;
 
 document.addEventListener('DOMContentLoaded', async () => {
-    modalSerie    = new bootstrap.Modal(document.getElementById('modalSerie'));
+    modalSerie = new bootstrap.Modal(document.getElementById('modalSerie'));
     modalChecklist = new bootstrap.Modal(document.getElementById('modalChecklist'));
 
-    // Cerrar modal checklist → re-renderizar forzado
     document.getElementById('modalChecklist').addEventListener('hidden.bs.modal', () => {
         document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
         document.body.classList.remove('modal-open');
@@ -19,14 +17,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         UIManager.renderizarSeries(CATEGORIA_ACTUAL, true);
     });
 
-    // El modal serie NO re-renderiza aquí: lo hace guardarSerie() directamente
-    // para evitar doble render que causa duplicados
-
     inicializarEventos();
     UIManager.renderizarSeries(CATEGORIA_ACTUAL);
 
-    // Inicializar notificaciones
-    await NotificationManager.init();
+    // Inicializar Calendar
+    await CalendarManager.programarTodasLasNotificaciones();
 });
 
 function inicializarEventos() {
@@ -34,7 +29,6 @@ function inicializarEventos() {
         e.preventDefault();
         await guardarSerie();
     });
-
     document.getElementById('categoria').addEventListener('change', (e) => {
         actualizarCamposExtras(e.target.value);
     });
@@ -115,6 +109,21 @@ function actualizarCamposExtras(categoria, datos = {}) {
                             <label for="star${valor}">★</label>
                         `).join('')}
                     </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Checklist personalizado (opcional)</label>
+                    <textarea class="form-control bg-dark text-white" id="checklistPersonalizado" 
+                              rows="4" placeholder="Escribe tu propio checklist...&#10;Ej:&#10;Capítulo 1 - Visto&#10;Capítulo 2 - Pendiente">${datos.checklist_personalizado || ''}</textarea>
+                    <small class="text-muted">Cada línea será un ítem del checklist</small>
+                </div>`;
+            break;
+        case 'a_medias':
+            camposExtras.innerHTML = `
+                <div class="mb-3">
+                    <label class="form-label">Checklist personalizado (opcional)</label>
+                    <textarea class="form-control bg-dark text-white" id="checklistPersonalizado" 
+                              rows="4" placeholder="Escribe tu propio checklist...&#10;Ej:&#10;Capítulo 1 - Visto&#10;Capítulo 2 - Pendiente">${datos.checklist_personalizado || ''}</textarea>
+                    <small class="text-muted">Cada línea será un ítem del checklist</small>
                 </div>`;
             break;
         default:
@@ -123,10 +132,10 @@ function actualizarCamposExtras(categoria, datos = {}) {
 }
 
 async function guardarSerie() {
-    const id        = document.getElementById('serieId').value;
-    const titulo    = document.getElementById('titulo').value;
+    const id = document.getElementById('serieId').value;
+    const titulo = document.getElementById('titulo').value;
     const categoria = document.getElementById('categoria').value;
-    const portada   = document.getElementById('portada').value;
+    const portada = document.getElementById('portada').value;
 
     if (!titulo) { alert('El título es obligatorio'); return; }
 
@@ -138,9 +147,9 @@ async function guardarSerie() {
             if (fechaPE) datos.fecha_estreno = fechaPE;
             break;
         case 'en_emision':
-            datos.fecha_estreno    = document.getElementById('fechaEstreno').value;
-            datos.total_capitulos  = parseInt(document.getElementById('totalCapitulos').value);
-            datos.dias_emision     = Array.from(document.querySelectorAll('.dia-badge.seleccionado')).map(b => b.dataset.dia);
+            datos.fecha_estreno = document.getElementById('fechaEstreno').value;
+            datos.total_capitulos = parseInt(document.getElementById('totalCapitulos').value);
+            datos.dias_emision = Array.from(document.querySelectorAll('.dia-badge.seleccionado')).map(b => b.dataset.dia);
             if (!datos.fecha_estreno || !datos.total_capitulos || datos.dias_emision.length === 0) {
                 alert('Todos los campos son obligatorios'); return;
             }
@@ -148,6 +157,12 @@ async function guardarSerie() {
         case 'vistas':
             const cal = document.querySelector('input[name="calificacion"]:checked');
             if (cal) datos.calificacion = parseFloat(cal.value);
+            const checklistV = document.getElementById('checklistPersonalizado')?.value;
+            if (checklistV) datos.checklist_personalizado = checklistV;
+            break;
+        case 'a_medias':
+            const checklistM = document.getElementById('checklistPersonalizado')?.value;
+            if (checklistM) datos.checklist_personalizado = checklistM;
             break;
     }
 
@@ -160,11 +175,9 @@ async function guardarSerie() {
             serieId = resultado?.id;
         }
 
-        // Reprogramar notificaciones para esta serie
-        if (serieId) await NotificationManager.reprogramarSerie(serieId);
+        if (serieId) await CalendarManager.reprogramarSerie(serieId);
 
         modalSerie.hide();
-        // forzar=true para invalidar caché y mostrar cambios inmediatamente
         UIManager.renderizarSeries(CATEGORIA_ACTUAL, true);
     } catch (error) {
         console.error('Error:', error);
@@ -172,7 +185,7 @@ async function guardarSerie() {
     }
 }
 
-function verChecklist(id)   { UIManager.mostrarChecklist(id); }
+function verChecklist(id) { UIManager.mostrarChecklist(id); }
 
 async function calificarSerie(id) {
     await editarSerie(id);
@@ -184,7 +197,6 @@ async function eliminarSerie(id) {
     if (confirm('¿Eliminar esta serie?')) {
         try {
             await SeriesManager.eliminarSerie(id);
-            // forzar=true para invalidar caché
             UIManager.renderizarSeries(CATEGORIA_ACTUAL, true);
         } catch (error) { alert('Error al eliminar'); }
     }
