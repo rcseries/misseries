@@ -103,9 +103,8 @@ const NotificationManager = {
         
         this.intervaloRevisión = setInterval(() => {
             this.verificarRecordatorios();
-        }, 30000); // Cada 30 segundos
+        }, 30000);
 
-        // Primera verificación inmediata
         this.verificarRecordatorios();
     },
 
@@ -126,9 +125,7 @@ const NotificationManager = {
 
             const fechaRecDate = new Date(fechaRec.getFullYear(), fechaRec.getMonth(), fechaRec.getDate());
 
-            // ¿Es hoy?
             if (fechaRecDate.getTime() === hoy.getTime()) {
-                // Notificar a las 7:00 AM (o después si abrió tarde)
                 if (horaActual >= 7 && minutosActual >= 0) {
                     this.mostrarNotificación(recordatorio);
                     recordatorio.notificado = true;
@@ -161,7 +158,6 @@ const NotificationManager = {
             notificacion.close();
         };
 
-        // Auto-cerrar después de 30 segundos
         setTimeout(() => notificacion.close(), 30000);
     },
 
@@ -178,14 +174,13 @@ const NotificationManager = {
             const str = typeof fechaStr === 'string' ? fechaStr.split('T')[0] : null;
             if (!str) return null;
             const [y, m, d] = str.split('-').map(Number);
-            return new Date(y, m - 1, d, 7, 0, 0); // 7:00 AM
+            return new Date(y, m - 1, d, 7, 0, 0);
         } catch (e) {
             return null;
         }
-    }
-};
+    },
 
-    // Mostrar notificación local (para el botón de campana)
+    // Mostrar notificación local
     mostrarLocal(titulo, cuerpo) {
         if (!this.permisoConcedido) {
             alert('Debes permitir las notificaciones');
@@ -198,5 +193,6 @@ const NotificationManager = {
         };
         new Notification(titulo, opciones);
     }
+};
 
 console.log('🔔 NotificationManager cargado');
