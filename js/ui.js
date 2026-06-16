@@ -193,13 +193,40 @@ class UIManager {
                         ${proximoHTML}`;
                     break;
                     
-                case 'vistas':
+                                case 'vistas':
+                    let checklistHTML = '';
+                    if (serie.checklist_personalizado) {
+                        let items;
+                        try { items = JSON.parse(serie.checklist_personalizado); } catch(e) { items = []; }
+                        const itemsVistos = items.filter(i => i.visto).length;
+                        checklistHTML = `
+                            <div class="mt-1">
+                                <small style="opacity: 0.8;">📋 Checklist: ${itemsVistos}/${items.length}</small>
+                                <div class="progress" style="height: 3px; background: rgba(255,255,255,0.2);">
+                                    <div class="progress-bar bg-info" style="width: ${items.length > 0 ? (itemsVistos/items.length)*100 : 0}%"></div>
+                                </div>
+                            </div>`;
+                    }
                     infoExtra = `
                         <div class="text-warning mb-1">${this.generarEstrellas(serie.calificacion || 0)}</div>
-                        ${!serie.calificacion ? '<small style="opacity: 0.7;">⭐ Sin calificar</small>' : ''}`;
+                        ${!serie.calificacion ? '<small style="opacity: 0.7;">⭐ Sin calificar</small>' : ''}
+                        ${checklistHTML}`;
                     break;
                     
                 case 'a_medias':
+                    let checklistAM = '';
+                    if (serie.checklist_personalizado) {
+                        let items;
+                        try { items = JSON.parse(serie.checklist_personalizado); } catch(e) { items = []; }
+                        const itemsVistosAM = items.filter(i => i.visto).length;
+                        checklistAM = `
+                            <div class="mt-1">
+                                <small style="opacity: 0.8;">📋 Checklist: ${itemsVistosAM}/${items.length}</small>
+                                <div class="progress" style="height: 3px; background: rgba(255,255,255,0.2);">
+                                    <div class="progress-bar bg-info" style="width: ${items.length > 0 ? (itemsVistosAM/items.length)*100 : 0}%"></div>
+                                </div>
+                            </div>`;
+                    }
                     const progreso = this.calcularProgreso(serie);
                     infoExtra = `
                         <div class="mt-1">
@@ -210,7 +237,8 @@ class UIManager {
                             <div class="progress" style="height: 4px; background: rgba(255,255,255,0.2);">
                                 <div class="progress-bar bg-info" style="width: ${progreso}%"></div>
                             </div>
-                        </div>`;
+                        </div>
+                        ${checklistAM}`;
                     break;
             }
             
@@ -239,7 +267,7 @@ class UIManager {
     }
 
     // Generar HTML de la tarjeta
-    static generarHTMLTarjeta(serie, portada, fechaEstreno, infoExtra, r, g, b, textoContraste) {
+       static generarHTMLTarjeta(serie, portada, fechaEstreno, infoExtra, r, g, b, textoContraste) {
         return `
             <div class="imagen-container">
                 <img src="${portada}" alt="${serie.titulo}" style="width: 100%; height: auto; display: block;">
@@ -259,6 +287,7 @@ class UIManager {
                         <ul class="dropdown-menu dropdown-menu-dark">
                             <li><a class="dropdown-item" href="#" onclick="editarSerie('${serie.id}')"><i class="fas fa-edit me-2"></i>Editar</a></li>
                             ${serie.categoria === 'en_emision' ? `<li><a class="dropdown-item" href="#" onclick="verChecklist('${serie.id}')"><i class="fas fa-list-check me-2"></i>Ver Checklist</a></li>` : ''}
+                            ${(serie.categoria === 'vistas' || serie.categoria === 'a_medias') && serie.checklist_personalizado ? `<li><a class="dropdown-item" href="#" onclick="verChecklist('${serie.id}')"><i class="fas fa-list-check me-2"></i>Ver Checklist</a></li>` : ''}
                             ${serie.categoria === 'vistas' && !serie.calificacion ? `<li><a class="dropdown-item" href="#" onclick="calificarSerie('${serie.id}')"><i class="fas fa-star me-2"></i>Calificar</a></li>` : ''}
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item text-danger" href="#" onclick="eliminarSerie('${serie.id}')"><i class="fas fa-trash me-2"></i>Eliminar</a></li>
