@@ -14,19 +14,14 @@ class SeriesManager {
             snapshot.forEach(doc => {
                 const data = doc.data();
                 
-                // Normalizar capitulos_checklist
                 if (data.capitulos_checklist) {
                     data.capitulos_checklist = ChecklistManager.normalizarCapitulos(data.capitulos_checklist);
                 }
                 
-                // NO convertir fecha_estreno - mantenerla como viene de Firestore
-                // Firestore guarda la fecha correctamente, solo extraerla como string
                 if (data.fecha_estreno) {
                     if (data.fecha_estreno.toDate && typeof data.fecha_estreno.toDate === 'function') {
-                        // Es un Timestamp de Firestore
                         const fechaDate = data.fecha_estreno.toDate();
-                        // Usar la fecha LOCAL, no UTC
-                        data.fecha_estreno = fechaDate.toLocaleDateString('en-CA'); // Formato YYYY-MM-DD
+                        data.fecha_estreno = fechaDate.toLocaleDateString('en-CA');
                     }
                 }
                 
@@ -36,8 +31,7 @@ class SeriesManager {
                 });
             });
             
-        if (fechaEstreno <= hoy && serie.tipo_estreno === 'serie') {
-        await this.moverCategoria(serie.id, 'en_emision');
+            await this.verificarAutomatizaciones(series);
             
             return series;
         } catch (error) {
@@ -59,7 +53,7 @@ class SeriesManager {
                 try {
                     const fechaEstreno = new Date(serie.fecha_estreno + 'T00:00:00');
                     
-                    if (fechaEstreno <= hoy) {
+                    if (fechaEstreno <= hoy && serie.tipo_estreno === 'serie') {
                         await this.moverCategoria(serie.id, 'en_emision');
                         console.log(`🤖 ${serie.titulo} movida a En Emisión (automático)`);
                     }
@@ -90,14 +84,10 @@ class SeriesManager {
                 ultima_actualizacion: new Date().toISOString()
             };
 
-            // Guardar la fecha EXACTAMENTE como el usuario la ingresó
-            // No hacer ninguna conversión - Firestore la guardará como string
             if (nuevaSerie.fecha_estreno) {
-                // Asegurar que sea formato YYYY-MM-DD (ya viene así del input date)
                 nuevaSerie.fecha_estreno = nuevaSerie.fecha_estreno.split('T')[0];
             }
 
-            // Si es "En Emisión", generar checklist automático
             if (datos.categoria === 'en_emision' && datos.fecha_estreno && datos.dias_emision && datos.total_capitulos) {
                 nuevaSerie.capitulos_checklist = ChecklistManager.generarFechasCapitulos(
                     nuevaSerie.fecha_estreno,
@@ -119,12 +109,10 @@ class SeriesManager {
         try {
             datos.ultima_actualizacion = new Date().toISOString();
             
-            // Guardar la fecha exactamente como viene del input
             if (datos.fecha_estreno) {
                 datos.fecha_estreno = datos.fecha_estreno.split('T')[0];
             }
             
-            // Si cambió a "En Emisión", regenerar checklist
             if (datos.categoria === 'en_emision' && datos.fecha_estreno && datos.dias_emision && datos.total_capitulos) {
                 datos.capitulos_checklist = ChecklistManager.generarFechasCapitulos(
                     datos.fecha_estreno,
@@ -190,7 +178,7 @@ class SeriesManager {
         });
     }
 
-    // Ordenar series En Emisión por fecha del próximo capítulo, luego alfabético
+    // Ordenar series En Emisión
     static ordenarEnEmision(series) {
         return series.sort((a, b) => {
             const proxA = ChecklistManager.obtenerProximoCapitulo(a.capitulos_checklist || []);
@@ -206,13 +194,11 @@ class SeriesManager {
             const fechaA = parsear(proxA);
             const fechaB = parsear(proxB);
 
-            // Sin próximo capítulo va al final
             if (!fechaA && !fechaB) return a.titulo.localeCompare(b.titulo);
             if (!fechaA) return 1;
             if (!fechaB) return -1;
 
             const diff = fechaA - fechaB;
-            // Si misma fecha → alfabético
             if (diff === 0) return a.titulo.localeCompare(b.titulo);
             return diff;
         });
