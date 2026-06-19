@@ -6,15 +6,19 @@ const NotificationManager = {
     recordatorios: [],
     intervaloRevisión: null,
     permisoConcedido: false,
+    swRegistration: null,
 
-    // Inicializar
     async init() {
         if (!('Notification' in window)) {
             console.warn('❌ Notificaciones no soportadas');
             return false;
         }
 
-        // Pedir permiso
+        if ('serviceWorker' in navigator) {
+            const reg = await navigator.serviceWorker.ready;
+            this.swRegistration = reg;
+        }
+
         if (Notification.permission === 'granted') {
             this.permisoConcedido = true;
         } else if (Notification.permission !== 'denied') {
@@ -33,7 +37,6 @@ const NotificationManager = {
         return this.permisoConcedido;
     },
 
-    // Cargar todos los recordatorios desde Firestore
     async cargarRecordatorios() {
         try {
             const snapshot = await seriesRef.get();
@@ -42,7 +45,6 @@ const NotificationManager = {
             snapshot.forEach(doc => {
                 const serie = { id: doc.id, ...doc.data() };
                 
-                // Fecha de estreno
                 if ((serie.categoria === 'pendiente_estreno' || serie.categoria === 'en_emision') && serie.fecha_estreno) {
                     this.recordatorios.push({
                         id: `estreno-${serie.id}`,
@@ -53,7 +55,6 @@ const NotificationManager = {
                         notificado: false
                     });
 
-                    // Un día antes
                     const unDiaAntes = this.parsearFecha(serie.fecha_estreno);
                     if (unDiaAntes) {
                         unDiaAntes.setDate(unDiaAntes.getDate() - 1);
@@ -68,7 +69,6 @@ const NotificationManager = {
                     }
                 }
 
-                // Capítulos de series en emisión
                 if (serie.categoria === 'en_emision' && serie.capitulos_checklist) {
                     let capitulos = serie.capitulos_checklist;
                     if (typeof capitulos === 'string') {
@@ -97,7 +97,6 @@ const NotificationManager = {
         }
     },
 
-    // Iniciar revisión cada 30 segundos
     iniciarRevisión() {
         if (this.intervaloRevisión) clearInterval(this.intervaloRevisión);
         
@@ -108,7 +107,6 @@ const NotificationManager = {
         this.verificarRecordatorios();
     },
 
-    // Verificar si hay recordatorios para AHORA
     verificarRecordatorios() {
         if (!this.permisoConcedido) return;
 
@@ -134,39 +132,38 @@ const NotificationManager = {
         });
     },
 
-    // Mostrar notificación del navegador
     mostrarNotificación(recordatorio) {
         if (!this.permisoConcedido) return;
 
-        const opciones = {
-            body: recordatorio.cuerpo,
-            icon: '/misseries/favicon.png',
-            badge: '/misseries/favicon.png',
-            tag: recordatorio.id,
-            requireInteraction: true,
-            vibrate: [200, 100, 200, 100, 200],
-            data: { url: recordatorio.url }
-        };
-
-        const notificacion = new Notification(recordatorio.titulo, opciones);
-
-        notificacion.onclick = () => {
-            window.focus();
-            if (recordatorio.url) {
-                window.location.href = recordatorio.url;
-            }
-            notificacion.close();
-        };
-
-        setTimeout(() => notificacion.close(), 30000);
+        if (this.swRegistration) {
+            this.swRegistration.showNotification(recordatorio.titulo, {
+                body: recordatorio.cuerpo,
+                icon: '/misseries/favicon.png',
+                badge: '/misseries/favicon.png',
+                tag: recordatorio.id,
+                requireInteraction: true,
+                vibrate: [200, 100, 200, 100, 200],
+                data: { url: recordatorio.url }
+            });
+        } else {
+            const opciones = {
+                body: recordatorio.cuerpo,
+                icon: '/misseries/favicon.png',
+                requireInteraction: true
+            };
+            const notif = new Notification(recordatorio.titulo, opciones);
+            notif.onclick = () => {
+                window.focus();
+                if (recordatorio.url) window.location.href = recordatorio.url;
+                notif.close();
+            };
+        }
     },
 
-    // Reprogramar después de agregar/editar
     async reprogramarTodo() {
         await this.cargarRecordatorios();
     },
 
-    // Parsear fecha
     parsearFecha(fechaStr) {
         if (!fechaStr) return null;
         try {
@@ -180,7 +177,6 @@ const NotificationManager = {
         }
     },
 
-    // Mostrar notificación local
     mostrarLocal(titulo, cuerpo) {
         if (!this.permisoConcedido) {
             alert('Debes permitir las notificaciones');
