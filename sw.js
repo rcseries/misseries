@@ -1,31 +1,16 @@
-const CACHE_NAME = 'series-tracker-v1';
-const BASE = '/missseries/';
+const CACHE_NAME = 'series-tracker-v2';
+const BASE = '/misseries/';
 
 self.addEventListener('install', (event) => {
-    event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
-            return cache.addAll([
-                BASE + 'index.html',
-                BASE + 'css/styles.css',
-                BASE + 'js/config.js',
-                BASE + 'js/app.js',
-                BASE + 'js/ui.js',
-                BASE + 'js/series.js',
-                BASE + 'js/checklist.js',
-                BASE + 'js/imageManager.js',
-                BASE + 'js/auth.js',
-                BASE + 'js/notifications.js',
-                BASE + 'favicon.png',
-                BASE + 'manifest.json'
-            ]);
-        })
-    );
+    self.skipWaiting();
 });
 
 self.addEventListener('fetch', (event) => {
     event.respondWith(
         caches.match(event.request).then((response) => {
-            return response || fetch(event.request);
+            return response || fetch(event.request).catch(() => {
+                return new Response('Sin conexión');
+            });
         })
     );
 });
@@ -38,4 +23,5 @@ self.addEventListener('activate', (event) => {
             );
         })
     );
+    self.clients.claim();
 });
