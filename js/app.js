@@ -72,7 +72,7 @@ async function editarSerie(id) {
 function actualizarCamposExtras(categoria, datos = {}) {
     const camposExtras = document.getElementById('camposExtras');
     switch (categoria) {
-                case 'pendiente_estreno':
+        case 'pendiente_estreno':
             camposExtras.innerHTML = `
                 <div class="mb-3">
                     <label class="form-label">Tipo de estreno</label>
@@ -162,6 +162,21 @@ function actualizarCamposExtras(categoria, datos = {}) {
                             <i class="fas fa-plus me-1"></i> Agregar ítem
                         </button>
                     </div>
+                </div>
+                <div class="mb-3 mt-3">
+                    <button type="button" class="btn btn-sm btn-outline-warning" onclick="toggleNuevoEstreno()" id="btnAgregarEstreno">
+                        <i class="fas fa-calendar-plus me-1"></i> Agregar nuevo estreno
+                    </button>
+                    <div id="nuevoEstrenoContainer" style="display:none; margin-top:10px;">
+                        <label class="form-label">Tipo de estreno</label>
+                        <select class="form-select bg-dark text-white mb-2" id="tipoNuevoEstreno">
+                            <option value="especial">Capítulo especial</option>
+                            <option value="temporada">Nueva temporada</option>
+                        </select>
+                        <label class="form-label">Fecha de estreno</label>
+                        <input type="date" class="form-control bg-dark text-white mb-2" id="fechaNuevoEstreno">
+                        <small class="text-muted">Se creará una entrada en Pendientes de Estreno vinculada a esta serie</small>
+                    </div>
                 </div>`;
             break;
         case 'a_medias':
@@ -219,7 +234,7 @@ async function guardarSerie() {
     const datos = { titulo, categoria, portada };
 
     switch (categoria) {
-                case 'pendiente_estreno':
+        case 'pendiente_estreno':
             const fechaPE = document.getElementById('fechaEstreno')?.value;
             if (fechaPE) datos.fecha_estreno = fechaPE;
             datos.tipo_estreno = document.getElementById('tipoEstreno')?.value || 'serie';
@@ -253,6 +268,15 @@ async function guardarSerie() {
             serieId = resultado?.id;
         }
 
+        // Si es Vistas y hay nuevo estreno, crearlo
+        if (categoria === 'vistas') {
+            const tipoNuevoEstreno = document.getElementById('tipoNuevoEstreno')?.value;
+            const fechaNuevoEstreno = document.getElementById('fechaNuevoEstreno')?.value;
+            if (tipoNuevoEstreno && fechaNuevoEstreno) {
+                await crearEstrenoDesdeVistas(id || serieId, titulo, tipoNuevoEstreno, fechaNuevoEstreno, portada);
+            }
+        }
+
         if (serieId) await NotificationManager.reprogramarTodo();
 
         modalSerie.hide();
@@ -260,6 +284,25 @@ async function guardarSerie() {
     } catch (error) {
         console.error('Error:', error);
         alert('Error al guardar');
+    }
+}
+
+async function crearEstrenoDesdeVistas(serieOriginalId, titulo, tipo, fecha, portada) {
+    try {
+        const nuevoEstreno = {
+            titulo: titulo + (tipo === 'especial' ? ' - Capítulo Especial' : ' - Nueva Temporada'),
+            categoria: 'pendiente_estreno',
+            fecha_estreno: fecha,
+            tipo_estreno: tipo,
+            serie_original_id: serieOriginalId,
+            portada: portada,
+            fecha_registro: new Date().toISOString(),
+            ultima_actualizacion: new Date().toISOString()
+        };
+        await seriesRef.add(nuevoEstreno);
+        console.log('✅ Nuevo estreno creado:', nuevoEstreno.titulo);
+    } catch (error) {
+        console.error('Error al crear estreno:', error);
     }
 }
 
@@ -293,6 +336,20 @@ function toggleChecklistPersonalizado() {
         container.style.display = 'none';
         btn.innerHTML = '<i class="fas fa-list-check me-1"></i> Agregar checklist personalizado';
         btn.className = 'btn btn-sm btn-outline-info';
+    }
+}
+
+function toggleNuevoEstreno() {
+    const container = document.getElementById('nuevoEstrenoContainer');
+    const btn = document.getElementById('btnAgregarEstreno');
+    if (container.style.display === 'none') {
+        container.style.display = 'block';
+        btn.innerHTML = '<i class="fas fa-times me-1"></i> Cancelar';
+        btn.className = 'btn btn-sm btn-outline-danger';
+    } else {
+        container.style.display = 'none';
+        btn.innerHTML = '<i class="fas fa-calendar-plus me-1"></i> Agregar nuevo estreno';
+        btn.className = 'btn btn-sm btn-outline-warning';
     }
 }
 
