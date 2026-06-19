@@ -36,8 +36,8 @@ class SeriesManager {
                 });
             });
             
-            // Verificar automatizaciones
-            await this.verificarAutomatizaciones(series);
+        if (fechaEstreno <= hoy && serie.tipo_estreno === 'serie') {
+        await this.moverCategoria(serie.id, 'en_emision');
             
             return series;
         } catch (error) {
