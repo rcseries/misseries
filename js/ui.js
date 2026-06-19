@@ -151,6 +151,14 @@ class UIManager {
             let infoExtra = '';
             
             switch(serie.categoria) {
+                case 'pendiente_estreno':
+                    const tipoEstreno = serie.tipo_estreno;
+                    let tipoBadge = '';
+                    if (tipoEstreno === 'especial') tipoBadge = '<span class="badge bg-warning text-dark ms-1">Especial</span>';
+                    else if (tipoEstreno === 'temporada') tipoBadge = '<span class="badge bg-info text-dark ms-1">Nueva Temp.</span>';
+                    infoExtra = tipoBadge;
+                    break;
+                    
                 case 'en_emision':
                     const capitulos = serie.capitulos_checklist || [];
                     const capitulosVistos = capitulos.filter(c => c.visto).length;
@@ -319,17 +327,32 @@ class UIManager {
         return cats[categoria] || categoria;
     }
 
-    static async mostrarChecklist(serieId) {
+        static async mostrarChecklist(serieId) {
         try {
             const doc = await seriesRef.doc(serieId).get();
             if (!doc.exists) return;
             const serie = { id: doc.id, ...doc.data() };
-            const capitulos = ChecklistManager.normalizarCapitulos(serie.capitulos_checklist);
             const body = document.getElementById('checklistBody');
             
-            if (!capitulos || capitulos.length === 0) {
-                body.innerHTML = '<p class="text-center py-3">No hay checklist disponible.</p>';
-            } else {
+            // Intentar checklist de En Emisión primero
+            const capitulos = ChecklistManager.normalizarCapitulos(serie.capitulos_checklist);
+            
+            // Si no tiene, intentar checklist personalizado
+            let itemsPersonalizados = null;
+            if (serie.checklist_personalizado) {
+                try {
+                    itemsPersonalizados = JSON.parse(serie.checklist_personalizado);
+                } catch(e) {
+                    itemsPersonalizados = null;
+                }
+            }
+            
+            // Si no hay nada que mostrar
+            if ((!capitulos || capitulos.length === 0) && (!itemsPersonalizados || itemsPersonalizados.length === 0)) {
+                body.innerHTML = '<p class="text-center py-3">No hay checklist disponible para esta serie.</p>';
+            } 
+            // Checklist de En Emisión
+            else if (capitulos && capitulos.length > 0) {
                 const vistos = capitulos.filter(c => c.visto).length;
                 const total = capitulos.length;
                 body.innerHTML = `
@@ -349,10 +372,54 @@ class UIManager {
                         </div>
                     `).join('')}`;
             }
+            // Checklist personalizado
+            else if (itemsPersonalizados && itemsPersonalizados.length > 0) {
+                const vistos = itemsPersonalizados.filter(i => i.visto).length;
+                const total = itemsPersonalizados.length;
+                body.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0">${serie.titulo} - Checklist</h6>
+                        <small>${vistos}/${total} completado</small>
+                    </div>
+                    <div class="progress mb-3" style="height: 6px; background: rgba(255,255,255,0.1);">
+                        <div class="progress-bar bg-info" style="width: ${(vistos/total)*100}%"></div>
+                    </div>
+                    ${itemsPersonalizados.map((item, index) => `
+                        <div class="capitulo-item ${item.visto ? 'completado' : ''}">
+                            <input type="checkbox" ${item.visto ? 'checked' : ''} 
+                                   onchange="UIManager.toggleChecklistPersonalizado('${serieId}', ${index}, this.checked)">
+                            <span class="capitulo-texto">${item.texto}</span>
+                            ${item.visto ? '<i class="fas fa-check-circle text-success ms-auto"></i>' : ''}
+                        </div>
+                    `).join('')}`;
+            }
+            
             new bootstrap.Modal(document.getElementById('modalChecklist')).show();
         } catch (error) { console.error('Error:', error); }
     }
 
+    // Toggle checklist personalizado
+    static async toggleChecklistPersonalizado(serieId, index, visto) {
+        try {
+            const doc = await seriesRef.doc(serieId).get();
+            if (!doc.exists) return;
+            const serie = doc.data();
+            let items = [];
+            if (serie.checklist_personalizado) {
+                try { items = JSON.parse(serie.checklist_personalizado); } catch(e) { items = []; }
+            }
+            if (items[index]) {
+                items[index].visto = visto;
+                await seriesRef.doc(serieId).update({
+                    checklist_personalizado: JSON.stringify(items),
+                    ultima_actualizacion: new Date().toISOString()
+                });
+                setTimeout(() => this.mostrarChecklist(serieId), 300);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
     static async toggleChecklist(serieId, numeroCapitulo, visto) {
         const resultado = await ChecklistManager.toggleCapitulo(serieId, numeroCapitulo, visto);
         if (resultado === 'completado') {
