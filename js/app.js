@@ -5,16 +5,22 @@
 let modalSerie;
 let modalChecklist;
 
-document.addEventListener('DOMContentLoaded', async () => {
-    modalSerie = new bootstrap.Modal(document.getElementById('modalSerie'));
-    modalChecklist = new bootstrap.Modal(document.getElementById('modalChecklist'));
-
     document.getElementById('modalChecklist').addEventListener('hidden.bs.modal', () => {
         document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
         document.body.classList.remove('modal-open');
         document.body.style.overflow = '';
         document.body.style.paddingRight = '';
-        UIManager.renderizarSeries(CATEGORIA_ACTUAL, true);
+        // Recargar sin forzar cache para mantener posición
+        UIManager.renderizarSeries(CATEGORIA_ACTUAL, false);
+    });
+    
+    document.getElementById('modalSerie').addEventListener('hidden.bs.modal', () => {
+        document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+        // Recargar sin forzar cache para mantener posición
+        UIManager.renderizarSeries(CATEGORIA_ACTUAL, false);
     });
 
     inicializarEventos();
@@ -64,13 +70,23 @@ async function editarSerie(id) {
 function actualizarCamposExtras(categoria, datos = {}) {
     const camposExtras = document.getElementById('camposExtras');
     switch (categoria) {
-        case 'pendiente_estreno':
+                case 'pendiente_estreno':
             camposExtras.innerHTML = `
+                <div class="mb-3">
+                    <label class="form-label">Tipo de estreno</label>
+                    <select class="form-select bg-dark text-white" id="tipoEstreno">
+                        <option value="serie" ${datos.tipo_estreno === 'serie' ? 'selected' : ''}>Serie nueva</option>
+                        <option value="especial" ${datos.tipo_estreno === 'especial' ? 'selected' : ''}>Capítulo especial</option>
+                        <option value="temporada" ${datos.tipo_estreno === 'temporada' ? 'selected' : ''}>Nueva temporada</option>
+                    </select>
+                </div>
                 <div class="mb-3">
                     <label class="form-label">Fecha de Estreno (Opcional)</label>
                     <input type="date" class="form-control bg-dark text-white" id="fechaEstreno"
                            value="${datos.fecha_estreno ? datos.fecha_estreno.split('T')[0] : ''}">
-                </div>`;
+                </div>
+                ${datos.serie_original_id ? `<input type="hidden" id="serieOriginalId" value="${datos.serie_original_id}">` : ''}
+                <small class="text-muted">Si es capítulo especial o nueva temporada, la serie original se mantendrá en Vistas</small>`;
             break;
         case 'en_emision':
             camposExtras.innerHTML = `
@@ -201,9 +217,12 @@ async function guardarSerie() {
     const datos = { titulo, categoria, portada };
 
     switch (categoria) {
-        case 'pendiente_estreno':
+                case 'pendiente_estreno':
             const fechaPE = document.getElementById('fechaEstreno')?.value;
             if (fechaPE) datos.fecha_estreno = fechaPE;
+            datos.tipo_estreno = document.getElementById('tipoEstreno')?.value || 'serie';
+            const serieOriginalId = document.getElementById('serieOriginalId')?.value;
+            if (serieOriginalId) datos.serie_original_id = serieOriginalId;
             break;
         case 'en_emision':
             datos.fecha_estreno = document.getElementById('fechaEstreno').value;
