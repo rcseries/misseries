@@ -5,12 +5,15 @@
 let modalSerie;
 let modalChecklist;
 
+document.addEventListener('DOMContentLoaded', async () => {
+    modalSerie = new bootstrap.Modal(document.getElementById('modalSerie'));
+    modalChecklist = new bootstrap.Modal(document.getElementById('modalChecklist'));
+
     document.getElementById('modalChecklist').addEventListener('hidden.bs.modal', () => {
         document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
         document.body.classList.remove('modal-open');
         document.body.style.overflow = '';
         document.body.style.paddingRight = '';
-        // Recargar sin forzar cache para mantener posición
         UIManager.renderizarSeries(CATEGORIA_ACTUAL, false);
     });
     
@@ -19,7 +22,6 @@ let modalChecklist;
         document.body.classList.remove('modal-open');
         document.body.style.overflow = '';
         document.body.style.paddingRight = '';
-        // Recargar sin forzar cache para mantener posición
         UIManager.renderizarSeries(CATEGORIA_ACTUAL, false);
     });
 
