@@ -97,16 +97,38 @@ const NotificationManager = {
         }
     },
 
-    iniciarRevisión() {
+        iniciarRevisión() {
         if (this.intervaloRevisión) clearInterval(this.intervaloRevisión);
         
+        // Verificar cada minuto
         this.intervaloRevisión = setInterval(() => {
             this.verificarRecordatorios();
-        }, 30000);
+        }, 60000);
 
+        // Primera verificación inmediata
         this.verificarRecordatorios();
+        
+        // También programar con el Service Worker para segundo plano
+        this.programarEnBackground();
     },
-
+        // Programar notificaciones en el Service Worker para segundo plano
+    async programarEnBackground() {
+        if (!this.swRegistration || !this.permisoConcedido) return;
+        
+        const ahora = new Date();
+        const manana7am = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() + 1, 7, 0, 0);
+        const delay = manana7am - ahora;
+        
+        // Programar verificación diaria a las 7 AM
+        setTimeout(() => {
+            this.verificarRecordatorios();
+            // Reprogramar para el siguiente día
+            setTimeout(() => this.programarEnBackground(), 86400000);
+        }, delay);
+        
+        console.log(`⏰ Próxima verificación programada para: ${manana7am.toLocaleString()}`);
+    },
+    
     verificarRecordatorios() {
         if (!this.permisoConcedido) return;
 
