@@ -351,7 +351,7 @@ class UIManager {
             if ((!capitulos || capitulos.length === 0) && (!itemsPersonalizados || itemsPersonalizados.length === 0)) {
                 body.innerHTML = '<p class="text-center py-3">No hay checklist disponible para esta serie.</p>';
             } 
-            // Checklist de En Emisión
+                        // Checklist de En Emisión
             else if (capitulos && capitulos.length > 0) {
                 const vistos = capitulos.filter(c => c.visto).length;
                 const total = capitulos.length;
@@ -363,14 +363,20 @@ class UIManager {
                     <div class="progress mb-3" style="height: 6px; background: rgba(255,255,255,0.1);">
                         <div class="progress-bar bg-success" style="width: ${(vistos/total)*100}%"></div>
                     </div>
+                    <div id="listaCapitulos">
                     ${capitulos.map(cap => `
                         <div class="capitulo-item ${cap.visto ? 'completado' : ''}">
                             <input type="checkbox" ${cap.visto ? 'checked' : ''} 
                                    onchange="UIManager.toggleChecklist('${serieId}', ${cap.numero}, this.checked)">
-                            <span class="capitulo-texto">Capítulo ${cap.numero} - ${ChecklistManager.formatearFecha(cap.fecha)}</span>
+                            <span class="capitulo-texto">Capítulo ${cap.numero}</span>
+                            <input type="date" class="form-control form-control-sm bg-dark text-white ms-2 checklist-fecha" 
+                                   value="${cap.fecha}" 
+                                   onchange="UIManager.actualizarFechaCapitulo('${serieId}', ${cap.numero}, this.value)"
+                                   style="width: 140px; border-color: rgba(255,255,255,0.15);">
                             ${cap.visto ? '<i class="fas fa-check-circle text-success ms-auto"></i>' : ''}
                         </div>
-                    `).join('')}`;
+                    `).join('')}
+                    </div>`;
             }
             // Checklist personalizado
             else if (itemsPersonalizados && itemsPersonalizados.length > 0) {
@@ -418,6 +424,32 @@ class UIManager {
             }
         } catch (error) {
             console.error('Error:', error);
+        }
+    }
+        // Actualizar fecha de un capítulo
+    static async actualizarFechaCapitulo(serieId, numeroCapitulo, nuevaFecha) {
+        try {
+            const doc = await seriesRef.doc(serieId).get();
+            if (!doc.exists) return;
+            const data = doc.data();
+            let capitulos = data.capitulos_checklist || [];
+            
+            if (typeof capitulos === 'string') {
+                try { capitulos = JSON.parse(capitulos); } catch (e) { capitulos = []; }
+            }
+            
+            const index = capitulos.findIndex(c => c.numero === numeroCapitulo);
+            if (index !== -1) {
+                capitulos[index].fecha = nuevaFecha;
+                await seriesRef.doc(serieId).update({
+                    capitulos_checklist: capitulos,
+                    ultima_actualizacion: new Date().toISOString()
+                });
+                // Reprogramar notificaciones
+                await NotificationManager.reprogramarTodo();
+            }
+        } catch (error) {
+            console.error('Error al actualizar fecha:', error);
         }
     }
     static async toggleChecklist(serieId, numeroCapitulo, visto) {
