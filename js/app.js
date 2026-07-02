@@ -268,11 +268,10 @@ async function guardarSerie() {
             serieId = resultado?.id;
         }
 
-        // Si es Vistas y hay nuevo estreno, crearlo
-        if (categoria === 'vistas') {
+                if (categoria === 'vistas') {
             const tipoNuevoEstreno = document.getElementById('tipoNuevoEstreno')?.value;
-            const fechaNuevoEstreno = document.getElementById('fechaNuevoEstreno')?.value;
-            if (tipoNuevoEstreno && fechaNuevoEstreno) {
+            const fechaNuevoEstreno = document.getElementById('fechaNuevoEstreno')?.value || null;
+            if (tipoNuevoEstreno) {
                 await crearEstrenoDesdeVistas(id || serieId, titulo, tipoNuevoEstreno, fechaNuevoEstreno, portada);
             }
         }
